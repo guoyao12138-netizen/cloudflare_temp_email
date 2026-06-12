@@ -7,7 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.inkblue.writer.InkApp
 import com.inkblue.writer.ai.AiClient
-import com.inkblue.writer.ai.AiConfig
+import com.inkblue.writer.ai.toAiConfig
 import com.inkblue.writer.data.Chapter
 import com.inkblue.writer.data.NovelRepository
 import com.inkblue.writer.data.SettingsRepository
@@ -78,22 +78,17 @@ class EditorViewModel(
         aiJob = viewModelScope.launch {
             _aiState.value = AiUiState.Loading(action)
             val settings = settingsRepo.settings.first()
-            if (settings.aiApiKey.isBlank()) {
+            val profile = settings.primaryProfile()
+            if (profile == null || profile.apiKey.isBlank()) {
                 _aiState.value = AiUiState.Failure(
                     action,
-                    "尚未配置 AI 服务。请前往「设置 → AI 写作」填写 API Key。",
+                    "尚未配置 AI 服务。请前往「设置 → AI 服务」添加并填写 API Key。",
                 )
                 return@launch
             }
-            val config = AiConfig(
-                provider = settings.aiProvider,
-                baseUrl = settings.effectiveAiBaseUrl(),
-                apiKey = settings.aiApiKey,
-                model = settings.effectiveAiModel(),
-            )
             val result = runCatching {
                 AiClient.generate(
-                    config = config,
+                    config = profile.toAiConfig(),
                     system = buildSystemPrompt(),
                     userPrompt = buildUserPrompt(action, chapterTitle, content, selection),
                 )

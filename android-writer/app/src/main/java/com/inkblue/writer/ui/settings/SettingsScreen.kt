@@ -10,9 +10,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -21,8 +24,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,17 +40,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.inkblue.writer.InkApp
+import com.inkblue.writer.data.AiProfile
 import com.inkblue.writer.data.AiProvider
 import com.inkblue.writer.data.AppSettings
 import com.inkblue.writer.data.ThemeMode
 import com.inkblue.writer.ui.components.InkCard
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
     val app = LocalContext.current.applicationContext as InkApp
@@ -56,6 +62,9 @@ fun SettingsScreen(onBack: () -> Unit) {
     LaunchedEffect(settings.editorFontSize) {
         fontSizeDraft = settings.editorFontSize.toFloat()
     }
+
+    var editingProfile by remember { mutableStateOf<AiProfile?>(null) }
+    var editingIsNew by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -187,70 +196,140 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
 
-            SectionLabel("AI 写作")
+            SectionLabel("AI 服务")
             InkCard {
                 Text(
-                    "在编辑器中通过 ✨ 按钮使用续写、润色与情节灵感。需要你自己的 API Key，密钥仅保存在本机。",
+                    "支持 Anthropic 协议与 OpenAI 兼容协议，Base URL 可填官方地址，也可填中转站 / API 代理。可添加多个服务用于多 AI 协作。密钥仅保存在本机。",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Spacer(Modifier.height(8.dp))
-                AiProvider.entries.forEach { provider ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = settings.aiProvider == provider,
-                                onClick = { scope.launch { app.settings.setAiProvider(provider) } },
-                            )
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                Spacer(Modifier.height(4.dp))
+                settings.aiProfiles.forEach { profile ->
+                    Surface(
+                        onClick = {
+                            editingProfile = profile
+                            editingIsNew = false
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surface,
                     ) {
-                        Text(
-                            provider.label,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.weight(1f),
-                        )
-                        RadioButton(
-                            selected = settings.aiProvider == provider,
-                            onClick = { scope.launch { app.settings.setAiProvider(provider) } },
-                        )
+                        Row(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(profile.name, style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    "${profile.provider.label.substringBefore("（")} · ${profile.effectiveModel()}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            if (profile.id == settings.primaryAiId) RoleBadge("主笔")
+                            if (profile.id == settings.reviewerAiId) {
+                                Spacer(Modifier.padding(start = 4.dp))
+                                RoleBadge("审校")
+                            }
+                        }
                     }
                 }
-                Spacer(Modifier.height(4.dp))
-                AiConfigField(
-                    label = "API Key",
-                    storedValue = settings.aiApiKey,
-                    placeholder = "必填",
-                    secret = true,
-                    onCommit = { scope.launch { app.settings.setAiApiKey(it) } },
+                if (settings.aiProfiles.isEmpty()) {
+                    Text(
+                        "还没有配置 AI 服务",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp),
+                    )
+                }
+                TextButton(
+                    onClick = {
+                        editingProfile = AiProfile(
+                            id = System.currentTimeMillis(),
+                            name = "",
+                            provider = AiProvider.ANTHROPIC,
+                        )
+                        editingIsNew = true
+                    },
+                ) { Text("＋ 添加 AI 服务") }
+            }
+
+            SectionLabel("AI 分工")
+            InkCard {
+                Text("主笔模型", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    "负责续写、润色、修订与设定起草",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Spacer(Modifier.height(8.dp))
-                AiConfigField(
-                    label = "Base URL（留空使用默认）",
-                    storedValue = settings.aiBaseUrl,
-                    placeholder = settings.aiProvider.defaultBaseUrl,
-                    onCommit = { scope.launch { app.settings.setAiBaseUrl(it) } },
+                if (settings.aiProfiles.isEmpty()) {
+                    Text(
+                        "请先添加 AI 服务",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp),
+                    )
+                }
+                settings.aiProfiles.forEach { profile ->
+                    RoleRadioRow(
+                        label = profile.name,
+                        selected = profile.id == settings.primaryAiId,
+                        onSelect = { scope.launch { app.settings.setPrimaryAi(profile.id) } },
+                    )
+                }
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.outline,
                 )
-                Spacer(Modifier.height(8.dp))
-                AiConfigField(
-                    label = "模型（留空使用默认）",
-                    storedValue = settings.aiModel,
-                    placeholder = settings.aiProvider.defaultModel,
-                    onCommit = { scope.launch { app.settings.setAiModel(it) } },
+                Text("审校模型（多 AI 协作）", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    "开启后，世界观生成由主笔起草、审校模型复核定稿",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                RoleRadioRow(
+                    label = "不启用",
+                    selected = settings.reviewerAiId == 0L,
+                    onSelect = { scope.launch { app.settings.setReviewerAi(0L) } },
+                )
+                settings.aiProfiles.forEach { profile ->
+                    RoleRadioRow(
+                        label = profile.name,
+                        selected = profile.id == settings.reviewerAiId,
+                        onSelect = { scope.launch { app.settings.setReviewerAi(profile.id) } },
+                    )
+                }
             }
 
             SectionLabel("关于")
             InkCard {
                 Text("墨蓝写作", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    "一款安静的网文写作应用。沉浸编辑、自动保存、撤销重做、自动缩进、世界观构筑与 AI 辅助写作。",
+                    "一款安静的网文写作应用。沉浸编辑、自动保存、世界观构筑、AI 辅助写作与多 AI 协作。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
+    }
+
+    editingProfile?.let { profile ->
+        ProfileEditDialog(
+            initial = profile,
+            isNew = editingIsNew,
+            onDismiss = { editingProfile = null },
+            onSave = { updated ->
+                scope.launch { app.settings.saveAiProfile(updated) }
+                editingProfile = null
+            },
+            onDelete = if (editingIsNew) {
+                null
+            } else {
+                {
+                    scope.launch { app.settings.deleteAiProfile(profile.id) }
+                    editingProfile = null
+                }
+            },
+        )
     }
 }
 
@@ -264,32 +343,37 @@ private fun SectionLabel(text: String) {
     )
 }
 
-/**
- * Text field for AI config values. Shows the stored value until the user
- * starts editing; afterwards the local draft wins (each change is persisted,
- * but slow DataStore round-trips can't clobber fast typing).
- */
 @Composable
-private fun AiConfigField(
-    label: String,
-    storedValue: String,
-    placeholder: String,
-    onCommit: (String) -> Unit,
-    secret: Boolean = false,
-) {
-    var draft by remember { mutableStateOf<String?>(null) }
-    OutlinedTextField(
-        value = draft ?: storedValue,
-        onValueChange = {
-            draft = it
-            onCommit(it)
-        },
-        label = { Text(label) },
-        placeholder = { Text(placeholder) },
-        singleLine = true,
-        visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
-        modifier = Modifier.fillMaxWidth(),
-    )
+private fun RoleBadge(text: String) {
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+        )
+    }
+}
+
+@Composable
+private fun RoleRadioRow(label: String, selected: Boolean, onSelect: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, onClick = onSelect)
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        RadioButton(selected = selected, onClick = onSelect)
+    }
 }
 
 @Composable
@@ -313,4 +397,110 @@ private fun ThemeModeRow(
         )
         RadioButton(selected = current == mode, onClick = { onSelect(mode) })
     }
+}
+
+@Composable
+private fun ProfileEditDialog(
+    initial: AiProfile,
+    isNew: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (AiProfile) -> Unit,
+    onDelete: (() -> Unit)?,
+) {
+    var name by remember { mutableStateOf(initial.name) }
+    var provider by remember { mutableStateOf(initial.provider) }
+    var baseUrl by remember { mutableStateOf(initial.baseUrl) }
+    var apiKey by remember { mutableStateOf(initial.apiKey) }
+    var model by remember { mutableStateOf(initial.model) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Text(
+                if (isNew) "添加 AI 服务" else "编辑 AI 服务",
+                style = MaterialTheme.typography.titleLarge,
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("名称") },
+                    placeholder = { Text("如：Claude 官方 / DeepSeek 中转") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AiProvider.entries.forEach { p ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(selected = provider == p, onClick = { provider = p }),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            p.label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        RadioButton(selected = provider == p, onClick = { provider = p })
+                    }
+                }
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = { apiKey = it },
+                    label = { Text("API Key") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = baseUrl,
+                    onValueChange = { baseUrl = it },
+                    label = { Text("Base URL（留空使用默认）") },
+                    placeholder = { Text(provider.defaultBaseUrl) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = model,
+                    onValueChange = { model = it },
+                    label = { Text("模型（留空使用默认）") },
+                    placeholder = { Text(provider.defaultModel) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onSave(
+                        initial.copy(
+                            name = name.trim().ifBlank { provider.label.substringBefore("（") },
+                            provider = provider,
+                            baseUrl = baseUrl.trim(),
+                            apiKey = apiKey.trim(),
+                            model = model.trim(),
+                        )
+                    )
+                },
+                enabled = apiKey.isNotBlank(),
+            ) { Text("保存") }
+        },
+        dismissButton = {
+            Row {
+                if (onDelete != null) {
+                    TextButton(onClick = onDelete) {
+                        Text("删除", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+                TextButton(onClick = onDismiss) { Text("取消") }
+            }
+        },
+    )
 }

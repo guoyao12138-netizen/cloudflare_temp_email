@@ -209,7 +209,11 @@ fun LoreListScreen(
             onDismissRequest = { aiSheetOpen = false },
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
-            Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 24.dp)) {
+            Column(
+                Modifier
+                    .padding(start = 20.dp, end = 20.dp, bottom = 24.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
                 Text(
                     "AI 构筑",
                     style = MaterialTheme.typography.headlineSmall,
@@ -280,7 +284,7 @@ fun LoreListScreen(
                     )
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        "正在构筑世界，请稍候…",
+                        state.stage,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -294,6 +298,7 @@ fun LoreListScreen(
         is LoreAiState.Preview -> GeneratedPreviewDialog(
             generator = state.generator,
             generated = state.entries,
+            reviewed = state.reviewed,
             onSave = { vm.saveGenerated(state.entries) },
             onRetry = { vm.runGenerator(state.generator, lastOption, lastExtra) },
             onDismiss = { vm.dismissAi() },
@@ -392,6 +397,7 @@ private fun GeneratorInputDialog(
 private fun GeneratedPreviewDialog(
     generator: LoreGenerator,
     generated: List<GeneratedLore>,
+    reviewed: Boolean,
     onSave: () -> Unit,
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
@@ -402,7 +408,7 @@ private fun GeneratedPreviewDialog(
         containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Text(
-                "${generator.label} · ${generated.size} 条",
+                "${generator.label} · ${generated.size} 条" + if (reviewed) " · 已协作审校" else "",
                 style = MaterialTheme.typography.titleLarge,
             )
         },

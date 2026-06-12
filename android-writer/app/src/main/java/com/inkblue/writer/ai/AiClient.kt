@@ -1,5 +1,6 @@
 package com.inkblue.writer.ai
 
+import com.inkblue.writer.data.AiProfile
 import com.inkblue.writer.data.AiProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,6 +15,13 @@ data class AiConfig(
     val baseUrl: String,
     val apiKey: String,
     val model: String,
+)
+
+fun AiProfile.toAiConfig() = AiConfig(
+    provider = provider,
+    baseUrl = effectiveBaseUrl(),
+    apiKey = apiKey,
+    model = effectiveModel(),
 )
 
 /**

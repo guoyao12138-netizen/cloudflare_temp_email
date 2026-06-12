@@ -36,6 +36,34 @@ enum class LoreGenerator(
         options = listOf("内敛写实", "热血张扬", "毁天灭地"),
         extraHint = "补充说明（可选）：体系名称、灵感来源、特殊规则……",
     ),
+    REGION(
+        label = "地区",
+        description = "生成一处与已有世界观呼应的地域",
+        optionLabel = "地区类型",
+        options = listOf("城池", "宗门驻地", "秘境", "王朝国度", "荒野绝地"),
+        extraHint = "补充说明（可选）：地名想法、地理特征、在剧情中的作用……",
+    ),
+    FACTION(
+        label = "势力",
+        description = "生成一个有立场、有矛盾的势力组织",
+        optionLabel = "势力类型",
+        options = listOf("宗门", "王朝", "世家", "魔道组织", "商会"),
+        extraHint = "补充说明（可选）：势力定位、与主角的关系、规模强弱……",
+    ),
+    CHARACTER(
+        label = "单个角色",
+        description = "生成一名角色：性格、外貌、背景、名称贴合世界观",
+        optionLabel = "角色定位",
+        options = listOf("主角", "反派", "导师", "挚友/道侣", "配角"),
+        extraHint = "补充说明（可选）：性别年龄、性格方向、名称风格偏好……",
+    ),
+    ITEM(
+        label = "物品法宝",
+        description = "生成一件融入力量体系的关键物品",
+        optionLabel = "物品类型",
+        options = listOf("武器法宝", "丹药", "功法秘籍", "天材地宝"),
+        extraHint = "补充说明（可选）：品阶强弱、来历、归属者……",
+    ),
     VILLAGE(
         label = "新手村",
         description = "基于已有世界观，生成主角的开局之地与隐藏机缘",
@@ -77,6 +105,32 @@ object LorePrompts {
                 appendLine("境界命名要贴合作品已有的世界观，力量表现严格符合上面的表现力要求。")
             }
 
+            LoreGenerator.REGION -> buildString {
+                appendLine("请基于已有世界观，生成一处「$option」类型的地区。")
+                append(supplement)
+                appendLine("要求输出 1 条「地点」条目，content 包含：地理位置与环境风貌、人文与势力归属、与已有设定的关联、可供剧情展开的看点（机缘、禁忌或冲突）。")
+                appendLine("如确有必要，可附加 1 条紧密相关的条目。")
+            }
+
+            LoreGenerator.FACTION -> buildString {
+                appendLine("请基于已有世界观，生成一个「$option」类型的势力。")
+                append(supplement)
+                appendLine("要求输出 1 条「势力」条目，content 包含：势力名称由来与底蕴、规模与实力层级（贴合力量体系）、核心人物与组织架构、立场主张、与其他已有势力的恩怨纠葛。")
+                appendLine("如确有必要，可附加 1 条紧密相关的条目（如核心人物或驻地）。")
+            }
+
+            LoreGenerator.CHARACTER -> buildString {
+                appendLine("请基于已有世界观，生成一名定位为「$option」的角色。")
+                append(supplement)
+                appendLine("要求输出 1 条「人物」条目，name 为角色姓名（风格贴合世界观与已有角色），content 依次包含：性格特点、外貌特征、背景来历、当前实力与所属势力、与主角或已有角色的关系、可挖掘的剧情潜力。")
+            }
+
+            LoreGenerator.ITEM -> buildString {
+                appendLine("请基于已有世界观，生成一件「$option」类型的物品。")
+                append(supplement)
+                appendLine("要求输出 1 条「物品」条目，content 包含：名称由来与外观、品阶与效用（贴合力量体系）、来历传承、当前下落或归属、围绕它可能展开的争夺或机缘。")
+            }
+
             LoreGenerator.VILLAGE -> buildString {
                 appendLine("请基于已有世界观，为主角设计开局之地（“新手村”）。")
                 append(supplement)
@@ -93,6 +147,35 @@ object LorePrompts {
             }
         }
         return body.trim() + "\n\n" + JSON_FORMAT
+    }
+
+    /** Second-pass prompt for the reviewer model (multi-AI collaboration). */
+    fun buildReviewPrompt(
+        generator: LoreGenerator,
+        option: String,
+        extra: String,
+        draftJson: String,
+    ): String = buildString {
+        appendLine("另一位 AI 作者为「${generator.label}」${if (option.isNotBlank()) "（要求：$option）" else ""}生成了以下设定草稿（JSON 数组）：")
+        if (extra.isNotBlank()) appendLine("作者的补充要求：$extra")
+        appendLine(draftJson)
+        appendLine()
+        appendLine("请以资深主编的身份审校这份草稿：修正与系统提示中已有世界观设定的矛盾，补足薄弱的细节，提升自洽性、文学性与剧情可展开性；可以修改、合并或增删条目。")
+        append(JSON_FORMAT)
+    }.trim()
+
+    fun toJson(entries: List<GeneratedLore>): String {
+        val array = JSONArray()
+        entries.forEach {
+            array.put(
+                org.json.JSONObject().apply {
+                    put("category", it.category.label)
+                    put("name", it.name)
+                    put("content", it.content)
+                }
+            )
+        }
+        return array.toString()
     }
 
     private fun powerStyleDetail(style: String) = when (style) {
