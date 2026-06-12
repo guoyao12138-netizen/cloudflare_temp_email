@@ -10,6 +10,7 @@
 
 ### Features
 
+- feat: |Android| Add `android-writer/`, an Android web-fiction writing app "InkBlue Writer": Pure Writer (纯纯写作)-style bookshelf / chapters / distraction-free editor (auto-save, undo/redo, auto paragraph indent on Enter, CJK punctuation quick bar, live word count), with a Claude-inspired UI re-tinted in blue (serif headings, hairline-bordered rounded cards, ink-blue accent, dark mode); built with Jetpack Compose + Room + DataStore, fully offline with no network permission
 - feat: |Frontend| Upgrade the address credential dialog to "Address Credentials & Connection Methods" and reuse it for both normal users and admin-created addresses; support showing AI Agent access via `ENABLE_AGENT_EMAIL_INFO` and SMTP/IMAP client settings via `SMTP_IMAP_PROXY_CONFIG`
 - docs: |Random Subdomain| Clarify in the "Use Random Subdomain" frontend tip and the `subdomain` / `worker-vars` docs (zh & en) that receiving mail on `name@<random>.abc.com` requires a wildcard `*` MX record under the base domain in DNS, because Cloudflare Email Routing does not inherit the apex configuration onto subdomains (issue #1035)
 
