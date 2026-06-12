@@ -1,0 +1,41 @@
+name: Build InkBlue Writer APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Publish APK to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(sed -n 's/.*versionName = "\(.*\)"/\1/p' app/build.gradle.kts)
+          TAG="v${VERSION}"
+          APK="inkblue-writer-v${VERSION}.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "$APK"
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "墨蓝写作 InkBlue Writer v${VERSION}" \
+              --notes "安卓网文创作 App。沉浸编辑、世界观构筑、AI 辅助写作与多 AI 协作。下载 APK 安装即可使用（安装时需允许未知来源）。"
+          fi
+          gh release upload "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
