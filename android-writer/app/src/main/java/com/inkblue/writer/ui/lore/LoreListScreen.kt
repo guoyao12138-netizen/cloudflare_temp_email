@@ -10,25 +10,33 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -45,6 +53,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.inkblue.writer.ai.GeneratedLore
+import com.inkblue.writer.ai.LoreGenerator
 import com.inkblue.writer.data.LoreCategory
 import com.inkblue.writer.data.LoreEntry
 import com.inkblue.writer.ui.components.ConfirmDialog
@@ -52,6 +62,7 @@ import com.inkblue.writer.ui.components.EmptyState
 import com.inkblue.writer.ui.components.InkCard
 import com.inkblue.writer.util.formatTime
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoreListScreen(
     bookId: Long,
@@ -61,10 +72,17 @@ fun LoreListScreen(
 ) {
     val book by vm.book.collectAsStateWithLifecycle()
     val entries by vm.entries.collectAsStateWithLifecycle()
+    val aiState by vm.aiState.collectAsStateWithLifecycle()
 
     var filter by remember { mutableStateOf<LoreCategory?>(null) }
     var showCreate by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<LoreEntry?>(null) }
+
+    // AI generator flow state.
+    var aiSheetOpen by remember { mutableStateOf(false) }
+    var generatorInput by remember { mutableStateOf<LoreGenerator?>(null) }
+    var lastOption by remember { mutableStateOf("") }
+    var lastExtra by remember { mutableStateOf("") }
 
     val visible = entries.filter { filter == null || it.loreCategory == filter }
 
@@ -97,6 +115,13 @@ fun LoreListScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    IconButton(onClick = { aiSheetOpen = true }) {
+                        Icon(
+                            Icons.Filled.AutoAwesome,
+                            contentDescription = "AI 构筑",
+                            tint = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -174,6 +199,260 @@ fun LoreListScreen(
             onDismiss = { deleting = null },
         )
     }
+
+    if (aiSheetOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { aiSheetOpen = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 24.dp)) {
+                Text(
+                    "AI 构筑",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    "生成结果会先预览，确认后才会保存到世界观",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                LoreGenerator.entries.forEach { generator ->
+                    Surface(
+                        onClick = {
+                            aiSheetOpen = false
+                            generatorInput = generator
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surface,
+                    ) {
+                        Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
+                            Text(
+                                generator.label,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                generator.description,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    generatorInput?.let { generator ->
+        GeneratorInputDialog(
+            generator = generator,
+            onDismiss = { generatorInput = null },
+            onConfirm = { option, extra ->
+                generatorInput = null
+                lastOption = option
+                lastExtra = extra
+                vm.runGenerator(generator, option, extra)
+            },
+        )
+    }
+
+    when (val state = aiState) {
+        LoreAiState.Hidden -> Unit
+
+        is LoreAiState.Loading -> AlertDialog(
+            onDismissRequest = { vm.dismissAi() },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text("AI 构筑 · ${state.generator.label}", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 2.5.dp,
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "正在构筑世界，请稍候…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { vm.dismissAi() }) { Text("取消") }
+            },
+        )
+
+        is LoreAiState.Preview -> GeneratedPreviewDialog(
+            generator = state.generator,
+            generated = state.entries,
+            onSave = { vm.saveGenerated(state.entries) },
+            onRetry = { vm.runGenerator(state.generator, lastOption, lastExtra) },
+            onDismiss = { vm.dismissAi() },
+        )
+
+        is LoreAiState.Failure -> AlertDialog(
+            onDismissRequest = { vm.dismissAi() },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text("${state.generator.label}生成失败", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                Text(
+                    state.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { vm.runGenerator(state.generator, lastOption, lastExtra) }) {
+                    Text("重试")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { vm.dismissAi() }) { Text("关闭") }
+            },
+        )
+    }
+}
+
+@Composable
+private fun GeneratorInputDialog(
+    generator: LoreGenerator,
+    onDismiss: () -> Unit,
+    onConfirm: (option: String, extra: String) -> Unit,
+) {
+    var option by remember { mutableStateOf(generator.options.firstOrNull() ?: "") }
+    var extra by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(generator.label, style = MaterialTheme.typography.titleLarge) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    generator.description,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (generator.optionLabel != null) {
+                    Text(
+                        generator.optionLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        generator.options.forEach { o ->
+                            FilterChip(
+                                selected = option == o,
+                                onClick = { option = o },
+                                label = { Text(o) },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                ),
+                            )
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = extra,
+                    onValueChange = { extra = it },
+                    label = { Text("作者补充") },
+                    placeholder = { Text(generator.extraHint) },
+                    minLines = 2,
+                    maxLines = 5,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(option, extra.trim()) }) { Text("开始生成") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
+}
+
+@Composable
+private fun GeneratedPreviewDialog(
+    generator: LoreGenerator,
+    generated: List<GeneratedLore>,
+    onSave: () -> Unit,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Text(
+                "${generator.label} · ${generated.size} 条",
+                style = MaterialTheme.typography.titleLarge,
+            )
+        },
+        text = {
+            Column(
+                Modifier
+                    .heightIn(max = 400.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                generated.forEachIndexed { index, item ->
+                    if (index > 0) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 10.dp),
+                            color = MaterialTheme.colorScheme.outline,
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                        ) {
+                            Text(
+                                item.category.label,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            item.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        item.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onSave) { Text("全部保存") }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onRetry) { Text("重试") }
+                TextButton(onClick = onDismiss) { Text("放弃") }
+            }
+        },
+    )
 }
 
 @Composable

@@ -62,9 +62,14 @@ class NovelRepository(
 
     suspend fun getLoreEntry(id: Long): LoreEntry? = loreDao.getEntry(id)
 
-    suspend fun createLoreEntry(bookId: Long, category: LoreCategory, name: String): Long {
+    suspend fun createLoreEntry(
+        bookId: Long,
+        category: LoreCategory,
+        name: String,
+        content: String = "",
+    ): Long {
         val id = loreDao.insert(
-            LoreEntry(bookId = bookId, category = category.name, name = name.trim())
+            LoreEntry(bookId = bookId, category = category.name, name = name.trim(), content = content)
         )
         bookDao.touch(bookId, now())
         return id

@@ -23,18 +23,27 @@ data class AiConfig(
  */
 object AiClient {
 
-    suspend fun generate(config: AiConfig, system: String, userPrompt: String): String =
-        withContext(Dispatchers.IO) {
-            when (config.provider) {
-                AiProvider.ANTHROPIC -> anthropicMessages(config, system, userPrompt)
-                AiProvider.OPENAI -> openAiChat(config, system, userPrompt)
-            }
+    suspend fun generate(
+        config: AiConfig,
+        system: String,
+        userPrompt: String,
+        maxTokens: Int = 2048,
+    ): String = withContext(Dispatchers.IO) {
+        when (config.provider) {
+            AiProvider.ANTHROPIC -> anthropicMessages(config, system, userPrompt, maxTokens)
+            AiProvider.OPENAI -> openAiChat(config, system, userPrompt, maxTokens)
         }
+    }
 
-    private fun anthropicMessages(config: AiConfig, system: String, prompt: String): String {
+    private fun anthropicMessages(
+        config: AiConfig,
+        system: String,
+        prompt: String,
+        maxTokens: Int,
+    ): String {
         val body = JSONObject().apply {
             put("model", config.model)
-            put("max_tokens", 2048)
+            put("max_tokens", maxTokens)
             put("system", system)
             put(
                 "messages",
@@ -69,10 +78,15 @@ object AiClient {
         throw IOException("AI 返回内容为空")
     }
 
-    private fun openAiChat(config: AiConfig, system: String, prompt: String): String {
+    private fun openAiChat(
+        config: AiConfig,
+        system: String,
+        prompt: String,
+        maxTokens: Int,
+    ): String {
         val body = JSONObject().apply {
             put("model", config.model)
-            put("max_tokens", 2048)
+            put("max_tokens", maxTokens)
             put(
                 "messages",
                 JSONArray()
@@ -99,7 +113,7 @@ object AiClient {
         try {
             conn.requestMethod = "POST"
             conn.connectTimeout = 20_000
-            conn.readTimeout = 180_000
+            conn.readTimeout = 300_000
             conn.doOutput = true
             conn.setRequestProperty("Content-Type", "application/json")
             headers.forEach { (k, v) -> conn.setRequestProperty(k, v) }
