@@ -10,6 +10,7 @@
 
 ### Features
 
+- feat: |Android| InkBlue Writer v0.2.0: add AI-assisted writing — in-editor continue (with worldbuilding entries and chapter context automatically included), polish-selection, and plot-idea brainstorming, with insert/replace results wired into undo; settings support Claude (native Anthropic Messages API, default `claude-opus-4-8`) or any OpenAI-compatible service (DeepSeek/Kimi etc.), API key stored locally only
 - feat: |Android| InkBlue Writer v0.2.0: add worldbuilding — a per-book lore library organized into characters / locations / items / factions / misc settings, with category filter chips, card previews, and an auto-saving entry editor; Room database migration v1→v2
 - feat: |Android| Add `android-writer/`, an Android web-fiction writing app "InkBlue Writer": Pure Writer (纯纯写作)-style bookshelf / chapters / distraction-free editor (auto-save, undo/redo, auto paragraph indent on Enter, CJK punctuation quick bar, live word count), with a Claude-inspired UI re-tinted in blue (serif headings, hairline-bordered rounded cards, ink-blue accent, dark mode); built with Jetpack Compose + Room + DataStore, fully offline with no network permission
 - feat: |Frontend| Upgrade the address credential dialog to "Address Credentials & Connection Methods" and reuse it for both normal users and admin-created addresses; support showing AI Agent access via `ENABLE_AGENT_EMAIL_INFO` and SMTP/IMAP client settings via `SMTP_IMAP_PROXY_CONFIG`

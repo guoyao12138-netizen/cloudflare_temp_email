@@ -10,6 +10,7 @@
 
 ### Features
 
+- feat: |Android| 墨蓝写作 v0.2.0：新增 AI 辅助写作——编辑器内续写（自动携带世界观设定与正文上下文）、润色选中、情节灵感，结果可插入/替换并支持撤销；设置页可配置 Claude（Anthropic 官方，默认 `claude-opus-4-8`）或 OpenAI 兼容服务（DeepSeek/Kimi 等），API Key 仅存本机
 - feat: |Android| 墨蓝写作 v0.2.0：新增世界观构筑功能——每部作品独立设定库，按人物/地点/物品/势力/设定五类管理，支持分类筛选、卡片预览与自动保存的独立编辑页；数据库迁移 v1→v2
 - feat: |Android| 新增 `android-writer/` 安卓网文写作 App「墨蓝写作」：模仿纯纯写作的书架/章节/沉浸式编辑器（自动保存、撤销重做、回车自动缩进、中文符号快捷栏、字数统计），UI 模仿 Claude 风格并蓝色化（衬线标题、圆角细边框卡片、墨蓝强调色、深色模式）；Jetpack Compose + Room + DataStore，纯本地无网络权限
 - feat: |Frontend| 将邮箱地址凭证弹窗升级为“地址凭证与连接方式”，复用普通用户与 admin 创建邮箱结果弹窗；支持通过 `ENABLE_AGENT_EMAIL_INFO` 展示 AI Agent 接入信息，并通过 `SMTP_IMAP_PROXY_CONFIG` 展示 SMTP/IMAP 客户端连接信息

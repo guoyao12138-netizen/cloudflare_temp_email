@@ -7,22 +7,30 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -91,7 +99,7 @@ fun EditorScreen(
     }
 }
 
-@OptIn(FlowPreview::class)
+@OptIn(FlowPreview::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun EditorContent(
     chapter: Chapter,
@@ -104,6 +112,7 @@ private fun EditorContent(
         mutableStateOf(TextFieldValue(chapter.content, TextRange(chapter.content.length)))
     }
     val saveState by vm.saveState.collectAsStateWithLifecycle()
+    val aiState by vm.aiState.collectAsStateWithLifecycle()
 
     // Undo / redo: snapshots grouped by a 1s typing window.
     val undoStack = remember { ArrayDeque<TextFieldValue>() }
@@ -111,6 +120,12 @@ private fun EditorContent(
     var canUndo by remember { mutableStateOf(false) }
     var canRedo by remember { mutableStateOf(false) }
     var lastSnapshotAt by remember { mutableLongStateOf(0L) }
+
+    // AI assistant state owned by the screen.
+    var aiSheetOpen by remember { mutableStateOf(false) }
+    var aiTargetRange by remember { mutableStateOf<TextRange?>(null) }
+    var aiSelectionText by remember { mutableStateOf("") }
+    var aiLastAction by remember { mutableStateOf<AiAction?>(null) }
 
     fun pushUndo(snapshot: TextFieldValue) {
         val now = System.currentTimeMillis()
@@ -163,6 +178,39 @@ private fun EditorContent(
         vm.markDirty()
     }
 
+    fun startAi(action: AiAction) {
+        aiSheetOpen = false
+        aiLastAction = action
+        aiTargetRange = contentValue.selection
+        aiSelectionText = if (contentValue.selection.collapsed) {
+            ""
+        } else {
+            contentValue.text.substring(contentValue.selection.min, contentValue.selection.max)
+        }
+        vm.runAi(action, titleValue.text, contentValue.text, aiSelectionText)
+    }
+
+    fun retryAi() {
+        aiLastAction?.let { action ->
+            vm.runAi(action, titleValue.text, contentValue.text, aiSelectionText)
+        }
+    }
+
+    /** Insert at the captured cursor, or replace the captured selection. */
+    fun applyAiText(text: String) {
+        pushUndo(contentValue)
+        lastSnapshotAt = 0L
+        val length = contentValue.text.length
+        val range = aiTargetRange
+        val start = (range?.min ?: length).coerceIn(0, length)
+        val end = (range?.max ?: length).coerceIn(start, length)
+        val newText = contentValue.text.replaceRange(start, end, text)
+        contentValue = TextFieldValue(newText, TextRange(start + text.length))
+        canUndo = true
+        vm.markDirty()
+        vm.dismissAi()
+    }
+
     // Debounced auto-save while typing.
     LaunchedEffect(Unit) {
         snapshotFlow { titleValue.text to contentValue.text }
@@ -186,7 +234,7 @@ private fun EditorContent(
             .imePadding()
             .navigationBarsPadding(),
     ) {
-        // Slim top bar: back · word count + save state · undo / redo
+        // Slim top bar: back · word count + save state · AI · undo / redo
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -209,6 +257,13 @@ private fun EditorContent(
                 color = colors.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
+            IconButton(onClick = { aiSheetOpen = true }) {
+                Icon(
+                    Icons.Filled.AutoAwesome,
+                    contentDescription = "AI 写作",
+                    tint = colors.primary,
+                )
+            }
             IconButton(onClick = ::undo, enabled = canUndo) {
                 Icon(
                     Icons.AutoMirrored.Filled.Undo,
@@ -316,6 +371,149 @@ private fun EditorContent(
                     }
                 }
             }
+        }
+    }
+
+    if (aiSheetOpen) {
+        val hasSelection = !contentValue.selection.collapsed
+        ModalBottomSheet(
+            onDismissRequest = { aiSheetOpen = false },
+            containerColor = colors.surface,
+        ) {
+            Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 24.dp)) {
+                Text(
+                    "AI 写作",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = colors.onSurface,
+                )
+                Spacer(Modifier.height(12.dp))
+                AiAction.entries.forEach { action ->
+                    val enabled = action != AiAction.POLISH || hasSelection
+                    AiActionRow(
+                        action = action,
+                        enabled = enabled,
+                        hint = if (!enabled) "先在正文中选中要润色的文字" else action.description,
+                        onClick = { startAi(action) },
+                    )
+                }
+            }
+        }
+    }
+
+    when (val state = aiState) {
+        AiUiState.Hidden -> Unit
+
+        is AiUiState.Loading -> AlertDialog(
+            onDismissRequest = { vm.dismissAi() },
+            containerColor = colors.surface,
+            title = { Text("AI ${state.action.label}", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = colors.primary,
+                        strokeWidth = 2.5.dp,
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "正在生成，请稍候…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { vm.dismissAi() }) { Text("取消") }
+            },
+        )
+
+        is AiUiState.Success -> AlertDialog(
+            onDismissRequest = { vm.dismissAi() },
+            containerColor = colors.surface,
+            title = { Text("${state.action.label}结果", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                Column(
+                    Modifier
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    Text(
+                        state.text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSurface,
+                    )
+                }
+            },
+            confirmButton = {
+                when (state.action) {
+                    AiAction.CONTINUE -> TextButton(onClick = { applyAiText(state.text) }) {
+                        Text("插入正文")
+                    }
+                    AiAction.POLISH -> TextButton(onClick = { applyAiText(state.text) }) {
+                        Text("替换选中")
+                    }
+                    AiAction.IDEA -> TextButton(onClick = { vm.dismissAi() }) {
+                        Text("好的")
+                    }
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { retryAi() }) { Text("重试") }
+                    TextButton(onClick = { vm.dismissAi() }) { Text("关闭") }
+                }
+            },
+        )
+
+        is AiUiState.Failure -> AlertDialog(
+            onDismissRequest = { vm.dismissAi() },
+            containerColor = colors.surface,
+            title = { Text("${state.action.label}失败", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                Text(
+                    state.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.onSurfaceVariant,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { retryAi() }) { Text("重试") }
+            },
+            dismissButton = {
+                TextButton(onClick = { vm.dismissAi() }) { Text("关闭") }
+            },
+        )
+    }
+}
+
+@Composable
+private fun AiActionRow(
+    action: AiAction,
+    enabled: Boolean,
+    hint: String,
+    onClick: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = MaterialTheme.shapes.medium,
+        color = colors.surface,
+    ) {
+        Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
+            Text(
+                action.label,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (enabled) colors.onSurface else colors.outline,
+            )
+            Text(
+                hint,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (enabled) colors.onSurfaceVariant else colors.outline,
+            )
         }
     }
 }

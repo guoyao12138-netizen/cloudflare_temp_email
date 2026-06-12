@@ -24,6 +24,9 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE id = :id")
     fun observeBook(id: Long): Flow<Book?>
 
+    @Query("SELECT * FROM books WHERE id = :id")
+    suspend fun getBook(id: Long): Book?
+
     @Insert
     suspend fun insert(book: Book): Long
 
@@ -65,6 +68,9 @@ interface LoreDao {
 
     @Query("SELECT * FROM lore_entries WHERE id = :id")
     suspend fun getEntry(id: Long): LoreEntry?
+
+    @Query("SELECT * FROM lore_entries WHERE bookId = :bookId ORDER BY updatedAt DESC")
+    suspend fun listEntries(bookId: Long): List<LoreEntry>
 
     @Insert
     suspend fun insert(entry: LoreEntry): Long

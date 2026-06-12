@@ -54,7 +54,11 @@ class NovelRepository(
         bookDao.touch(chapter.bookId, now())
     }
 
+    suspend fun getBook(id: Long): Book? = bookDao.getBook(id)
+
     fun observeLore(bookId: Long): Flow<List<LoreEntry>> = loreDao.observeEntries(bookId)
+
+    suspend fun listLore(bookId: Long): List<LoreEntry> = loreDao.listEntries(bookId)
 
     suspend fun getLoreEntry(id: Long): LoreEntry? = loreDao.getEntry(id)
 
