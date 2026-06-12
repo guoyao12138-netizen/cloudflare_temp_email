@@ -1,5 +1,6 @@
 package com.inkblue.writer.ui.lore
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -167,13 +168,6 @@ private fun LoreEditorContent(
                 color = colors.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = { revisionSheetOpen = true }) {
-                Icon(
-                    Icons.Filled.AutoAwesome,
-                    contentDescription = "AI 修订",
-                    tint = colors.primary,
-                )
-            }
         }
 
         BasicTextField(
@@ -249,6 +243,30 @@ private fun LoreEditorContent(
                 }
             },
         )
+
+        // AI revision entry, bottom-center within thumb reach.
+        Surface(color = colors.surface, modifier = Modifier.fillMaxWidth()) {
+            Column {
+                HorizontalDivider(color = colors.outline)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    TextButton(onClick = { revisionSheetOpen = true }) {
+                        Icon(
+                            Icons.Filled.AutoAwesome,
+                            contentDescription = "AI 修订",
+                            tint = colors.primary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("AI 修订", color = colors.primary)
+                    }
+                }
+            }
+        }
     }
 
     if (revisionSheetOpen) {

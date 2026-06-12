@@ -31,6 +31,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -249,25 +250,32 @@ fun OutlineScreen(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                IconButton(onClick = { plannerOpen = true }) {
-                    Icon(
-                        Icons.Filled.AutoAwesome,
-                        contentDescription = "AI 规划大纲",
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
             }
         },
+        floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { creating = true },
-                shape = RoundedCornerShape(28.dp),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("新建阶段")
+            Row {
+                ExtendedFloatingActionButton(
+                    onClick = { plannerOpen = true },
+                    shape = RoundedCornerShape(28.dp),
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ) {
+                    Icon(Icons.Filled.AutoAwesome, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("AI 规划")
+                }
+                Spacer(Modifier.width(12.dp))
+                ExtendedFloatingActionButton(
+                    onClick = { creating = true },
+                    shape = RoundedCornerShape(28.dp),
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("新建阶段")
+                }
             }
         },
     ) { padding ->

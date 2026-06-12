@@ -265,13 +265,6 @@ private fun EditorContent(
                 color = colors.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = { aiSheetOpen = true }) {
-                Icon(
-                    Icons.Filled.AutoAwesome,
-                    contentDescription = "AI 写作",
-                    tint = colors.primary,
-                )
-            }
             IconButton(onClick = ::undo, enabled = canUndo) {
                 Icon(
                     Icons.AutoMirrored.Filled.Undo,
@@ -372,6 +365,17 @@ private fun EditorContent(
                         .padding(horizontal = 8.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    TextButton(onClick = { aiSheetOpen = true }) {
+                        Icon(
+                            Icons.Filled.AutoAwesome,
+                            contentDescription = "AI 写作",
+                            tint = colors.primary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("AI", fontSize = 16.sp, color = colors.primary)
+                    }
+                    Spacer(Modifier.width(2.dp))
                     SYMBOLS.forEach { (symbol, offset) ->
                         TextButton(onClick = { insertSymbol(symbol, offset) }) {
                             Text(
