@@ -57,3 +57,21 @@ interface ChapterDao {
     @Delete
     suspend fun delete(chapter: Chapter)
 }
+
+@Dao
+interface LoreDao {
+    @Query("SELECT * FROM lore_entries WHERE bookId = :bookId ORDER BY updatedAt DESC")
+    fun observeEntries(bookId: Long): Flow<List<LoreEntry>>
+
+    @Query("SELECT * FROM lore_entries WHERE id = :id")
+    suspend fun getEntry(id: Long): LoreEntry?
+
+    @Insert
+    suspend fun insert(entry: LoreEntry): Long
+
+    @Update
+    suspend fun update(entry: LoreEntry)
+
+    @Delete
+    suspend fun delete(entry: LoreEntry)
+}

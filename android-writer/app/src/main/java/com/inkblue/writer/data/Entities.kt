@@ -43,3 +43,36 @@ data class BookWithStats(
     val chapterCount: Int,
     val totalWords: Int,
 )
+
+enum class LoreCategory(val label: String) {
+    CHARACTER("人物"),
+    LOCATION("地点"),
+    ITEM("物品"),
+    FACTION("势力"),
+    OTHER("设定"),
+}
+
+@Entity(
+    tableName = "lore_entries",
+    foreignKeys = [
+        ForeignKey(
+            entity = Book::class,
+            parentColumns = ["id"],
+            childColumns = ["bookId"],
+            onDelete = ForeignKey.CASCADE,
+        )
+    ],
+    indices = [Index("bookId")],
+)
+data class LoreEntry(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val bookId: Long,
+    val category: String = LoreCategory.CHARACTER.name,
+    val name: String,
+    val content: String = "",
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
+) {
+    val loreCategory: LoreCategory
+        get() = LoreCategory.entries.firstOrNull { it.name == category } ?: LoreCategory.OTHER
+}

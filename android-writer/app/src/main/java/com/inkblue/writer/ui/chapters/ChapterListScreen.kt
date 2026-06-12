@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -50,6 +51,7 @@ fun ChapterListScreen(
     bookId: Long,
     onBack: () -> Unit,
     onOpenChapter: (Long) -> Unit,
+    onOpenLore: () -> Unit,
     vm: ChapterListViewModel = viewModel(factory = ChapterListViewModel.factory(bookId)),
 ) {
     val book by vm.book.collectAsStateWithLifecycle()
@@ -94,6 +96,13 @@ fun ChapterListScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                IconButton(onClick = onOpenLore) {
+                    Icon(
+                        Icons.Outlined.Public,
+                        contentDescription = "世界观",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Box {
                     IconButton(onClick = { bookMenuOpen = true }) {
                         Icon(
@@ -103,6 +112,13 @@ fun ChapterListScreen(
                         )
                     }
                     DropdownMenu(expanded = bookMenuOpen, onDismissRequest = { bookMenuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("世界观设定") },
+                            onClick = {
+                                bookMenuOpen = false
+                                onOpenLore()
+                            },
+                        )
                         DropdownMenuItem(
                             text = { Text("编辑作品信息") },
                             onClick = {

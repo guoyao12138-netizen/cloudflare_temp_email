@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 class NovelRepository(
     private val bookDao: BookDao,
     private val chapterDao: ChapterDao,
+    private val loreDao: LoreDao,
 ) {
     fun observeBooks(): Flow<List<BookWithStats>> = bookDao.observeBooksWithStats()
 
@@ -51,6 +52,31 @@ class NovelRepository(
             )
         )
         bookDao.touch(chapter.bookId, now())
+    }
+
+    fun observeLore(bookId: Long): Flow<List<LoreEntry>> = loreDao.observeEntries(bookId)
+
+    suspend fun getLoreEntry(id: Long): LoreEntry? = loreDao.getEntry(id)
+
+    suspend fun createLoreEntry(bookId: Long, category: LoreCategory, name: String): Long {
+        val id = loreDao.insert(
+            LoreEntry(bookId = bookId, category = category.name, name = name.trim())
+        )
+        bookDao.touch(bookId, now())
+        return id
+    }
+
+    /** Persist the lore editor buffer; skips the write when nothing changed. */
+    suspend fun saveLoreEntry(id: Long, name: String, content: String) {
+        val entry = loreDao.getEntry(id) ?: return
+        if (entry.name == name && entry.content == content) return
+        loreDao.update(entry.copy(name = name, content = content, updatedAt = now()))
+        bookDao.touch(entry.bookId, now())
+    }
+
+    suspend fun deleteLoreEntry(entry: LoreEntry) {
+        loreDao.delete(entry)
+        bookDao.touch(entry.bookId, now())
     }
 
     private fun now() = System.currentTimeMillis()
