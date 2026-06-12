@@ -61,6 +61,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.inkblue.writer.InkApp
 import com.inkblue.writer.data.AppSettings
 import com.inkblue.writer.data.Chapter
+import com.inkblue.writer.data.StyleProfile
 import com.inkblue.writer.util.countWords
 import com.inkblue.writer.util.formatWordCount
 import kotlinx.coroutines.FlowPreview
@@ -127,6 +128,9 @@ private fun EditorContent(
     var aiTargetRange by remember { mutableStateOf<TextRange?>(null) }
     var aiSelectionText by remember { mutableStateOf("") }
     var aiLastAction by remember { mutableStateOf<AiAction?>(null) }
+    var aiLastStyle by remember { mutableStateOf<StyleProfile?>(null) }
+    var stylePickerOpen by remember { mutableStateOf(false) }
+    val styles by vm.styles.collectAsStateWithLifecycle()
 
     fun pushUndo(snapshot: TextFieldValue) {
         val now = System.currentTimeMillis()
@@ -179,21 +183,23 @@ private fun EditorContent(
         vm.markDirty()
     }
 
-    fun startAi(action: AiAction) {
+    fun startAi(action: AiAction, style: StyleProfile? = null) {
         aiSheetOpen = false
+        stylePickerOpen = false
         aiLastAction = action
+        aiLastStyle = style
         aiTargetRange = contentValue.selection
         aiSelectionText = if (contentValue.selection.collapsed) {
             ""
         } else {
             contentValue.text.substring(contentValue.selection.min, contentValue.selection.max)
         }
-        vm.runAi(action, titleValue.text, contentValue.text, aiSelectionText)
+        vm.runAi(action, titleValue.text, contentValue.text, aiSelectionText, style)
     }
 
     fun retryAi() {
         aiLastAction?.let { action ->
-            vm.runAi(action, titleValue.text, contentValue.text, aiSelectionText)
+            vm.runAi(action, titleValue.text, contentValue.text, aiSelectionText, aiLastStyle)
         }
     }
 
@@ -400,11 +406,65 @@ private fun EditorContent(
                         action = action,
                         enabled = enabled,
                         hint = if (!enabled) "先在正文中选中要润色的文字" else action.description,
-                        onClick = { startAi(action) },
+                        onClick = {
+                            if (action == AiAction.MIMIC) {
+                                aiSheetOpen = false
+                                stylePickerOpen = true
+                            } else {
+                                startAi(action)
+                            }
+                        },
                     )
                 }
             }
         }
+    }
+
+    if (stylePickerOpen) {
+        AlertDialog(
+            onDismissRequest = { stylePickerOpen = false },
+            containerColor = colors.surface,
+            title = { Text("选择文风档案", style = MaterialTheme.typography.titleLarge) },
+            text = {
+                if (styles.isEmpty()) {
+                    Text(
+                        "文风库还是空的。请回到书架页，点击顶栏的画笔图标进入「文风库」，上传小说文本创建文风档案。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSurfaceVariant,
+                    )
+                } else {
+                    Column(
+                        Modifier
+                            .heightIn(max = 360.dp)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        styles.forEach { style ->
+                            Surface(
+                                onClick = { startAi(AiAction.MIMIC, style) },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = colors.surface,
+                            ) {
+                                Column(Modifier.padding(vertical = 8.dp)) {
+                                    Text(
+                                        style.name,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = colors.onSurface,
+                                    )
+                                    Text(
+                                        style.analysis.replace('\n', ' ').take(60),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = colors.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { stylePickerOpen = false }) { Text("取消") }
+            },
+        )
     }
 
     when (val state = aiState) {
@@ -458,6 +518,9 @@ private fun EditorContent(
                     }
                     AiAction.POLISH -> TextButton(onClick = { applyAiText(state.text) }) {
                         Text("替换选中")
+                    }
+                    AiAction.MIMIC -> TextButton(onClick = { applyAiText(state.text) }) {
+                        Text(if (aiSelectionText.isNotBlank()) "替换选中" else "插入正文")
                     }
                     AiAction.IDEA -> TextButton(onClick = { vm.dismissAi() }) {
                         Text("好的")

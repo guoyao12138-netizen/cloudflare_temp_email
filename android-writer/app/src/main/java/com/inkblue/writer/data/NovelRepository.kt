@@ -7,6 +7,8 @@ class NovelRepository(
     private val bookDao: BookDao,
     private val chapterDao: ChapterDao,
     private val loreDao: LoreDao,
+    private val outlineDao: OutlineDao,
+    private val styleDao: StyleDao,
 ) {
     fun observeBooks(): Flow<List<BookWithStats>> = bookDao.observeBooksWithStats()
 
@@ -87,6 +89,50 @@ class NovelRepository(
         loreDao.delete(entry)
         bookDao.touch(entry.bookId, now())
     }
+
+    fun observeOutline(bookId: Long): Flow<List<OutlineNode>> = outlineDao.observeNodes(bookId)
+
+    suspend fun listOutline(bookId: Long): List<OutlineNode> = outlineDao.listNodes(bookId)
+
+    suspend fun createOutlineNode(bookId: Long, title: String, content: String): Long {
+        val order = outlineDao.maxSortOrder(bookId) + 1
+        return outlineDao.insert(
+            OutlineNode(bookId = bookId, title = title.trim(), content = content, sortOrder = order)
+        )
+    }
+
+    suspend fun appendOutlineNodes(bookId: Long, nodes: List<Pair<String, String>>) {
+        var order = outlineDao.maxSortOrder(bookId)
+        nodes.forEach { (title, content) ->
+            order += 1
+            outlineDao.insert(
+                OutlineNode(bookId = bookId, title = title.trim(), content = content, sortOrder = order)
+            )
+        }
+    }
+
+    suspend fun updateOutlineNode(node: OutlineNode, title: String, content: String) =
+        outlineDao.update(node.copy(title = title.trim(), content = content, updatedAt = now()))
+
+    suspend fun deleteOutlineNode(node: OutlineNode) = outlineDao.delete(node)
+
+    /** Swap display order of two adjacent outline nodes. */
+    suspend fun swapOutlineOrder(a: OutlineNode, b: OutlineNode) {
+        outlineDao.update(a.copy(sortOrder = b.sortOrder, updatedAt = now()))
+        outlineDao.update(b.copy(sortOrder = a.sortOrder, updatedAt = now()))
+    }
+
+    fun observeStyles(): Flow<List<StyleProfile>> = styleDao.observeStyles()
+
+    suspend fun getStyle(id: Long): StyleProfile? = styleDao.getStyle(id)
+
+    suspend fun createStyle(name: String, analysis: String): Long =
+        styleDao.insert(StyleProfile(name = name.trim(), analysis = analysis))
+
+    suspend fun renameStyle(style: StyleProfile, name: String) =
+        styleDao.update(style.copy(name = name.trim()))
+
+    suspend fun deleteStyle(style: StyleProfile) = styleDao.delete(style)
 
     private fun now() = System.currentTimeMillis()
 }

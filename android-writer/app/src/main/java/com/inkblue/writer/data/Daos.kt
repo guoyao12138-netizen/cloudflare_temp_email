@@ -81,3 +81,42 @@ interface LoreDao {
     @Delete
     suspend fun delete(entry: LoreEntry)
 }
+
+@Dao
+interface OutlineDao {
+    @Query("SELECT * FROM outline_nodes WHERE bookId = :bookId ORDER BY sortOrder ASC, id ASC")
+    fun observeNodes(bookId: Long): Flow<List<OutlineNode>>
+
+    @Query("SELECT * FROM outline_nodes WHERE bookId = :bookId ORDER BY sortOrder ASC, id ASC")
+    suspend fun listNodes(bookId: Long): List<OutlineNode>
+
+    @Query("SELECT IFNULL(MAX(sortOrder), 0) FROM outline_nodes WHERE bookId = :bookId")
+    suspend fun maxSortOrder(bookId: Long): Int
+
+    @Insert
+    suspend fun insert(node: OutlineNode): Long
+
+    @Update
+    suspend fun update(node: OutlineNode)
+
+    @Delete
+    suspend fun delete(node: OutlineNode)
+}
+
+@Dao
+interface StyleDao {
+    @Query("SELECT * FROM style_profiles ORDER BY createdAt DESC")
+    fun observeStyles(): Flow<List<StyleProfile>>
+
+    @Query("SELECT * FROM style_profiles WHERE id = :id")
+    suspend fun getStyle(id: Long): StyleProfile?
+
+    @Insert
+    suspend fun insert(style: StyleProfile): Long
+
+    @Update
+    suspend fun update(style: StyleProfile)
+
+    @Delete
+    suspend fun delete(style: StyleProfile)
+}

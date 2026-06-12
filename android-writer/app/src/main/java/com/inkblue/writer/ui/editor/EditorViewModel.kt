@@ -11,20 +11,24 @@ import com.inkblue.writer.ai.toAiConfig
 import com.inkblue.writer.data.Chapter
 import com.inkblue.writer.data.NovelRepository
 import com.inkblue.writer.data.SettingsRepository
+import com.inkblue.writer.data.StyleProfile
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class SaveState { SAVED, EDITING }
 
 enum class AiAction(val label: String, val description: String) {
-    CONTINUE("续写", "结合世界观设定与上下文，自然续写约 300 字"),
+    CONTINUE("续写", "结合世界观、大纲与上下文，自然续写约 300 字"),
     POLISH("润色", "润色选中的文字，使其更生动流畅"),
+    MIMIC("文风仿写", "选择文风档案：无选区按该文风续写，有选区改写选中文字"),
     IDEA("情节灵感", "给出 3 个后续情节走向建议"),
 }
 
@@ -52,6 +56,9 @@ class EditorViewModel(
     private val _aiState = MutableStateFlow<AiUiState>(AiUiState.Hidden)
     val aiState: StateFlow<AiUiState> = _aiState
 
+    val styles: StateFlow<List<StyleProfile>> = repo.observeStyles()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private var aiJob: Job? = null
 
     init {
@@ -73,7 +80,13 @@ class EditorViewModel(
         }
     }
 
-    fun runAi(action: AiAction, chapterTitle: String, content: String, selection: String) {
+    fun runAi(
+        action: AiAction,
+        chapterTitle: String,
+        content: String,
+        selection: String,
+        style: StyleProfile? = null,
+    ) {
         aiJob?.cancel()
         aiJob = viewModelScope.launch {
             _aiState.value = AiUiState.Loading(action)
@@ -89,7 +102,7 @@ class EditorViewModel(
             val result = runCatching {
                 AiClient.generate(
                     config = profile.toAiConfig(),
-                    system = buildSystemPrompt(),
+                    system = buildSystemPrompt(style),
                     userPrompt = buildUserPrompt(action, chapterTitle, content, selection),
                 )
             }
@@ -108,11 +121,12 @@ class EditorViewModel(
         _aiState.value = AiUiState.Hidden
     }
 
-    /** Book info + worldbuilding entries form the stable context for every AI call. */
-    private suspend fun buildSystemPrompt(): String {
+    /** Book info + worldbuilding + outline (+ optional style guide) for every AI call. */
+    private suspend fun buildSystemPrompt(style: StyleProfile?): String {
         val chapter = repo.getChapter(chapterId)
         val book = chapter?.let { repo.getBook(it.bookId) }
         val lore = chapter?.let { repo.listLore(it.bookId) } ?: emptyList()
+        val outline = chapter?.let { repo.listOutline(it.bookId) } ?: emptyList()
         return buildString {
             appendLine("你是一位资深的中文网络小说写作助手，文笔自然流畅，擅长贴合作品既有的文风与节奏。")
             if (book != null) {
@@ -125,6 +139,16 @@ class EditorViewModel(
                     val detail = it.content.take(200).replace('\n', ' ')
                     appendLine("- [${it.loreCategory.label}] ${it.name}：$detail")
                 }
+            }
+            if (outline.isNotEmpty()) {
+                appendLine("故事大纲（按顺序推进，续写时注意当前进度并向下一阶段自然衔接）：")
+                outline.take(30).forEachIndexed { i, node ->
+                    appendLine("${i + 1}. ${node.title}：${node.content.take(150).replace('\n', ' ')}")
+                }
+            }
+            if (style != null) {
+                appendLine("【文风指南】你必须严格模仿以下文风创作，它的优先级高于你的默认文风：")
+                appendLine(style.analysis.take(3000))
             }
         }.trim()
     }
@@ -147,6 +171,20 @@ class EditorViewModel(
             appendLine(selection)
             appendLine()
             append("直接输出润色后的文字，不要任何解释或前缀。")
+        }
+
+        AiAction.MIMIC -> buildString {
+            if (selection.isNotBlank()) {
+                appendLine("请将以下片段改写为系统提示中文风指南所描述的风格，保持情节、人称与信息不变：")
+                appendLine(selection)
+                appendLine()
+                append("直接输出改写后的文字，不要任何解释或前缀。")
+            } else {
+                appendLine("以下是当前章节《$title》的结尾部分：")
+                appendLine(content.takeLast(1500).ifBlank { "（本章尚无内容，请直接开篇。）" })
+                appendLine()
+                append("请严格按照系统提示中的文风指南自然续写约 300 字。直接输出正文，不要任何解释或前缀。")
+            }
         }
 
         AiAction.IDEA -> buildString {
