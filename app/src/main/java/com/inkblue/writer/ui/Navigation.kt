@@ -11,7 +11,9 @@ import com.inkblue.writer.ui.chapters.ChapterListScreen
 import com.inkblue.writer.ui.editor.EditorScreen
 import com.inkblue.writer.ui.lore.LoreEditorScreen
 import com.inkblue.writer.ui.lore.LoreListScreen
+import com.inkblue.writer.ui.outline.OutlineScreen
 import com.inkblue.writer.ui.settings.SettingsScreen
+import com.inkblue.writer.ui.styles.StyleLibraryScreen
 
 @Composable
 fun InkNavHost() {
@@ -21,7 +23,11 @@ fun InkNavHost() {
             BookshelfScreen(
                 onOpenBook = { nav.navigate("book/$it") },
                 onOpenSettings = { nav.navigate("settings") },
+                onOpenStyles = { nav.navigate("styles") },
             )
+        }
+        composable("styles") {
+            StyleLibraryScreen(onBack = { nav.popBackStack() })
         }
         composable(
             "book/{bookId}",
@@ -33,6 +39,17 @@ fun InkNavHost() {
                 onBack = { nav.popBackStack() },
                 onOpenChapter = { nav.navigate("editor/$it") },
                 onOpenLore = { nav.navigate("lore/$bookId") },
+                onOpenOutline = { nav.navigate("outline/$bookId") },
+            )
+        }
+        composable(
+            "outline/{bookId}",
+            arguments = listOf(navArgument("bookId") { type = NavType.LongType }),
+        ) { entry ->
+            val bookId = entry.arguments?.getLong("bookId") ?: return@composable
+            OutlineScreen(
+                bookId = bookId,
+                onBack = { nav.popBackStack() },
             )
         }
         composable(

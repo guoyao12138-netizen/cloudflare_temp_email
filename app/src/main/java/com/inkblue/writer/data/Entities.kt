@@ -76,3 +76,35 @@ data class LoreEntry(
     val loreCategory: LoreCategory
         get() = LoreCategory.entries.firstOrNull { it.name == category } ?: LoreCategory.OTHER
 }
+
+/** One ordered plot-stage card in a book's outline. */
+@Entity(
+    tableName = "outline_nodes",
+    foreignKeys = [
+        ForeignKey(
+            entity = Book::class,
+            parentColumns = ["id"],
+            childColumns = ["bookId"],
+            onDelete = ForeignKey.CASCADE,
+        )
+    ],
+    indices = [Index("bookId")],
+)
+data class OutlineNode(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val bookId: Long,
+    val title: String,
+    val content: String = "",
+    val sortOrder: Int = 0,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
+)
+
+/** A reusable writing-style guide distilled by the style agent from sample text. */
+@Entity(tableName = "style_profiles")
+data class StyleProfile(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val analysis: String,
+    val createdAt: Long = System.currentTimeMillis(),
+)

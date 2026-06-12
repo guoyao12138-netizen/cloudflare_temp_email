@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.DropdownMenu
@@ -51,6 +52,7 @@ import com.inkblue.writer.util.formatWordCount
 fun BookshelfScreen(
     onOpenBook: (Long) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenStyles: () -> Unit,
     vm: BookshelfViewModel = viewModel(factory = BookshelfViewModel.Factory),
 ) {
     val books by vm.books.collectAsStateWithLifecycle()
@@ -94,6 +96,13 @@ fun BookshelfScreen(
                             if (books.isEmpty()) "落笔成章，始于此页" else "共 ${books.size} 部作品",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    IconButton(onClick = onOpenStyles) {
+                        Icon(
+                            Icons.Filled.Brush,
+                            contentDescription = "文风库",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     IconButton(onClick = onOpenSettings) {

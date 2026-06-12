@@ -36,6 +36,6 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
               --title "墨蓝写作 InkBlue Writer v${VERSION}" \
-              --notes "安卓网文创作 App。沉浸编辑、世界观构筑、AI 辅助写作与多 AI 协作。下载 APK 安装即可使用（安装时需允许未知来源）。"
+              --notes "安卓网文创作 App。沉浸编辑、大纲规划、世界观构筑、AI 辅助写作、文风仿写与多 AI 协作。下载 APK 安装即可使用（安装时需允许未知来源）。"
           fi
           gh release upload "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --clobber
