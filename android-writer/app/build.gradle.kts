@@ -13,12 +13,28 @@ android {
         applicationId = "com.inkblue.writer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.3.0"
+        versionCode = 5
+        versionName = "0.4.0"
+    }
+
+    // Fixed keystore (committed to the repo) so every build — local or CI —
+    // carries the same signature and users can upgrade in place. This is a
+    // distribution convenience key, not a store-publishing secret.
+    signingConfigs {
+        create("shared") {
+            storeFile = rootProject.file("inkblue.keystore")
+            storePassword = "inkblue-writer"
+            keyAlias = "inkblue"
+            keyPassword = "inkblue-writer"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("shared")
+        }
         release {
+            signingConfig = signingConfigs.getByName("shared")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

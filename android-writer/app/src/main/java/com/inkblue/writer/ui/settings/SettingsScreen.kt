@@ -102,6 +102,42 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
 
+            SectionLabel("显示")
+            InkCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("高刷新率", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "按设备支持的最高刷新率运行（90/120Hz 屏幕生效）",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = settings.highRefreshRate,
+                        onCheckedChange = { scope.launch { app.settings.setHighRefreshRate(it) } },
+                    )
+                }
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.outline,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("帧率显示", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "在屏幕右上角显示实时 FPS",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = settings.showFps,
+                        onCheckedChange = { scope.launch { app.settings.setShowFps(it) } },
+                    )
+                }
+            }
+
             SectionLabel("编辑器")
             InkCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {

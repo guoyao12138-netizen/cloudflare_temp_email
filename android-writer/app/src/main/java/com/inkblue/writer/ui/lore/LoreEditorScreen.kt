@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -104,6 +105,7 @@ private fun LoreEditorContent(
             .statusBarsPadding()
             .imePadding()
             .navigationBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Row(
             modifier = Modifier
@@ -144,6 +146,7 @@ private fun LoreEditorContent(
                 name = it
             },
             modifier = Modifier
+                .widthIn(max = 760.dp)
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp, vertical = 8.dp),
             textStyle = TextStyle(
@@ -171,7 +174,10 @@ private fun LoreEditorContent(
         )
 
         HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 24.dp),
+            modifier = Modifier
+                .widthIn(max = 760.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
             color = colors.outline,
         )
 
@@ -182,6 +188,7 @@ private fun LoreEditorContent(
                 content = it
             },
             modifier = Modifier
+                .widthIn(max = 760.dp)
                 .fillMaxWidth()
                 .weight(1f)
                 .padding(horizontal = 24.dp, vertical = 12.dp),

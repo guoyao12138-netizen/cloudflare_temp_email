@@ -7,3 +7,6 @@ local.properties
 captures/
 .cxx/
 *.keystore
+# Fixed distribution keystore — intentionally committed so every CI build
+# carries the same signature and in-place upgrades work.
+!inkblue.keystore

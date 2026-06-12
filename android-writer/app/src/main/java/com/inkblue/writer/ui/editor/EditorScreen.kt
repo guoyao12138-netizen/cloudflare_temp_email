@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -233,6 +234,7 @@ private fun EditorContent(
             .statusBarsPadding()
             .imePadding()
             .navigationBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Slim top bar: back · word count + save state · AI · undo / redo
         Row(
@@ -288,6 +290,7 @@ private fun EditorContent(
                 titleValue = it
             },
             modifier = Modifier
+                .widthIn(max = 760.dp)
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp, vertical = 8.dp),
             textStyle = TextStyle(
@@ -315,7 +318,10 @@ private fun EditorContent(
         )
 
         HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 24.dp),
+            modifier = Modifier
+                .widthIn(max = 760.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
             color = colors.outline,
         )
 
@@ -324,6 +330,7 @@ private fun EditorContent(
             value = contentValue,
             onValueChange = ::onContentChange,
             modifier = Modifier
+                .widthIn(max = 760.dp)
                 .fillMaxWidth()
                 .weight(1f)
                 .padding(horizontal = 24.dp, vertical = 12.dp),

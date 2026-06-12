@@ -27,6 +27,8 @@ data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val editorFontSize: Int = 18,
     val autoIndent: Boolean = true,
+    val highRefreshRate: Boolean = true,
+    val showFps: Boolean = false,
     val aiProvider: AiProvider = AiProvider.ANTHROPIC,
     val aiBaseUrl: String = "",
     val aiApiKey: String = "",
@@ -41,6 +43,8 @@ class SettingsRepository(private val context: Context) {
         val THEME = stringPreferencesKey("theme_mode")
         val FONT_SIZE = intPreferencesKey("editor_font_size")
         val AUTO_INDENT = booleanPreferencesKey("auto_indent")
+        val HIGH_REFRESH_RATE = booleanPreferencesKey("high_refresh_rate")
+        val SHOW_FPS = booleanPreferencesKey("show_fps")
         val AI_PROVIDER = stringPreferencesKey("ai_provider")
         val AI_BASE_URL = stringPreferencesKey("ai_base_url")
         val AI_API_KEY = stringPreferencesKey("ai_api_key")
@@ -54,6 +58,8 @@ class SettingsRepository(private val context: Context) {
                 ?: ThemeMode.SYSTEM,
             editorFontSize = p[Keys.FONT_SIZE] ?: 18,
             autoIndent = p[Keys.AUTO_INDENT] ?: true,
+            highRefreshRate = p[Keys.HIGH_REFRESH_RATE] ?: true,
+            showFps = p[Keys.SHOW_FPS] ?: false,
             aiProvider = p[Keys.AI_PROVIDER]
                 ?.let { value -> AiProvider.entries.firstOrNull { it.name == value } }
                 ?: AiProvider.ANTHROPIC,
@@ -73,6 +79,14 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAutoIndent(enabled: Boolean) {
         context.dataStore.edit { it[Keys.AUTO_INDENT] = enabled }
+    }
+
+    suspend fun setHighRefreshRate(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.HIGH_REFRESH_RATE] = enabled }
+    }
+
+    suspend fun setShowFps(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.SHOW_FPS] = enabled }
     }
 
     suspend fun setAiProvider(provider: AiProvider) {
