@@ -41,7 +41,7 @@ Claude 标志性的珊瑚橙强调色替换为墨蓝色系。
 - **屏幕适应**（v0.4.0）：书架/章节/世界观列表在平板与横屏下自适应多列网格；编辑器正文限宽 760dp 居中保持可读行宽；旋转屏幕不重建界面、编辑状态无损
 - **帧数**（v0.4.0）：「高刷新率」开关（按设备最高刷新率运行，90/120Hz 生效）；「帧率显示」开关（右上角实时 FPS）
 - **设置**：浅色 / 深色 / 跟随系统主题，正文字号（14–26sp，带实时预览），自动缩进开关
-- **macOS Intel 桌面版**（v0.6.1，`desktop/` 目录）：Compose Desktop 实现，与安卓同源的蓝色 UI 与功能（书架/章节/大纲/世界观/文风库/AI 写作/多 AI 协作），数据存于 `~/.inkblue-writer/data.json`；Release 附带 `*-mac-intel.dmg`（未签名，首次打开需右键 → 打开）
+- **macOS Intel 桌面版**（v0.6.1+，`desktop/` 目录）：Compose Desktop 实现，与安卓同源的蓝色 UI 与功能（书架/章节/大纲/世界观/文风库/AI 写作/多 AI 协作），数据存于 `~/.inkblue-writer/data.json`。Release 附带 `*-mac-intel.jar`（GitHub 已退役免费 Intel Mac 构建机，无法打 DMG）：安装 [Temurin JDK 17+](https://adoptium.net/) 后运行 `java -jar inkblue-writer-vX.X.X-mac-intel.jar`；本地也可在任意平台 `cd desktop && gradle run` 直接运行，或在 Intel Mac 上 `gradle packageDmg` 自行打 DMG
 - **深色模式**：蓝调炭黑夜间主题
 
 ## 技术栈

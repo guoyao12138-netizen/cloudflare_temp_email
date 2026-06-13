@@ -7,8 +7,17 @@ plugins {
     id("org.jetbrains.compose") version "1.7.3"
 }
 
+// -PcomposeTarget=macx64 cross-packages the Intel-mac uber-JAR from any host
+// (GitHub retired free Intel mac runners, so DMG-on-runner is not an option).
+val composeTarget = providers.gradleProperty("composeTarget").getOrElse("current")
+
 dependencies {
-    implementation(compose.desktop.currentOs)
+    implementation(
+        when (composeTarget) {
+            "macx64" -> compose.desktop.macos_x64
+            else -> compose.desktop.currentOs
+        }
+    )
     implementation(compose.material3)
     implementation(compose.materialIconsExtended)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.9.0")
