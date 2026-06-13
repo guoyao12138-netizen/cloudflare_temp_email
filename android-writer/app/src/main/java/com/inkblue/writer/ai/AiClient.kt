@@ -24,10 +24,13 @@ fun AiProfile.toAiConfig() = AiConfig(
     model = effectiveModel(),
 )
 
+/** One chat turn: role is "user" or "assistant". */
+data class ChatTurn(val role: String, val content: String)
+
 /**
- * Minimal HTTP client for the two supported protocols. Raw HttpURLConnection +
- * org.json keeps the APK free of extra dependencies; requests are short,
- * non-streaming completions (max_tokens 2048).
+ * Minimal HTTP client for the two supported protocols. Web search is served
+ * by Anthropic's server-side `web_search` tool (Anthropic protocol only);
+ * the OpenAI-compatible path silently ignores the flag.
  */
 object AiClient {
 
@@ -36,71 +39,105 @@ object AiClient {
         system: String,
         userPrompt: String,
         maxTokens: Int = 2048,
+        enableSearch: Boolean = false,
+    ): String = chat(config, system, listOf(ChatTurn("user", userPrompt)), maxTokens, enableSearch)
+
+    suspend fun chat(
+        config: AiConfig,
+        system: String,
+        history: List<ChatTurn>,
+        maxTokens: Int = 2048,
+        enableSearch: Boolean = false,
     ): String = withContext(Dispatchers.IO) {
         when (config.provider) {
-            AiProvider.ANTHROPIC -> anthropicMessages(config, system, userPrompt, maxTokens)
-            AiProvider.OPENAI -> openAiChat(config, system, userPrompt, maxTokens)
+            AiProvider.ANTHROPIC -> anthropicRun(config, system, history, maxTokens, enableSearch)
+            AiProvider.OPENAI -> openAiRun(config, system, history, maxTokens)
         }
     }
 
-    private fun anthropicMessages(
+    private fun anthropicRun(
         config: AiConfig,
         system: String,
-        prompt: String,
+        history: List<ChatTurn>,
         maxTokens: Int,
+        enableSearch: Boolean,
     ): String {
-        val body = JSONObject().apply {
-            put("model", config.model)
-            put("max_tokens", maxTokens)
-            put("system", system)
-            put(
-                "messages",
-                JSONArray().put(
-                    JSONObject().apply {
-                        put("role", "user")
-                        put("content", prompt)
-                    }
-                ),
-            )
+        val messages = JSONArray()
+        history.forEach { turn ->
+            messages.put(JSONObject().apply {
+                put("role", turn.role)
+                put("content", turn.content)
+            })
         }
-        val json = post(
-            url = config.baseUrl.trimEnd('/') + "/v1/messages",
-            headers = mapOf(
-                "x-api-key" to config.apiKey,
-                "anthropic-version" to "2023-06-01",
-            ),
-            body = body,
-        )
-        // Safety classifiers can decline with HTTP 200 + stop_reason "refusal".
-        if (json.optString("stop_reason") == "refusal") {
-            throw IOException("请求被模型安全策略拒绝，请调整内容后重试")
-        }
-        val content = json.getJSONArray("content")
-        for (i in 0 until content.length()) {
-            val block = content.getJSONObject(i)
-            if (block.getString("type") == "text") {
-                val text = block.getString("text").trim()
-                if (text.isNotEmpty()) return text
+        val collected = StringBuilder()
+        // Server-side tools may pause the turn; resume up to 6 rounds.
+        repeat(6) {
+            val body = JSONObject().apply {
+                put("model", config.model)
+                put("max_tokens", maxTokens)
+                put("system", system)
+                put("messages", messages)
+                if (enableSearch) {
+                    put("tools", JSONArray().put(JSONObject().apply {
+                        put("type", "web_search_20260209")
+                        put("name", "web_search")
+                    }))
+                }
             }
+            val json = post(
+                url = config.baseUrl.trimEnd('/') + "/v1/messages",
+                headers = mapOf(
+                    "x-api-key" to config.apiKey,
+                    "anthropic-version" to "2023-06-01",
+                ),
+                body = body,
+            )
+            if (json.optString("stop_reason") == "refusal") {
+                throw IOException("请求被模型安全策略拒绝，请调整内容后重试")
+            }
+            val content = json.getJSONArray("content")
+            for (i in 0 until content.length()) {
+                val block = content.getJSONObject(i)
+                if (block.optString("type") == "text") {
+                    collected.append(block.optString("text"))
+                }
+            }
+            if (json.optString("stop_reason") != "pause_turn") {
+                val text = collected.toString().trim()
+                if (text.isEmpty()) throw IOException("AI 返回内容为空")
+                return text
+            }
+            // Resume: echo the assistant content back and continue the turn.
+            messages.put(JSONObject().apply {
+                put("role", "assistant")
+                put("content", content)
+            })
         }
-        throw IOException("AI 返回内容为空")
+        val text = collected.toString().trim()
+        if (text.isEmpty()) throw IOException("搜索轮次过多且无内容返回，请重试")
+        return text
     }
 
-    private fun openAiChat(
+    private fun openAiRun(
         config: AiConfig,
         system: String,
-        prompt: String,
+        history: List<ChatTurn>,
         maxTokens: Int,
     ): String {
+        val messages = JSONArray().put(JSONObject().apply {
+            put("role", "system")
+            put("content", system)
+        })
+        history.forEach { turn ->
+            messages.put(JSONObject().apply {
+                put("role", turn.role)
+                put("content", turn.content)
+            })
+        }
         val body = JSONObject().apply {
             put("model", config.model)
             put("max_tokens", maxTokens)
-            put(
-                "messages",
-                JSONArray()
-                    .put(JSONObject().apply { put("role", "system"); put("content", system) })
-                    .put(JSONObject().apply { put("role", "user"); put("content", prompt) }),
-            )
+            put("messages", messages)
         }
         val json = post(
             url = config.baseUrl.trimEnd('/') + "/chat/completions",

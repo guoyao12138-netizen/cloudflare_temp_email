@@ -22,7 +22,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +41,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.inkblue.writer.data.Book
 import com.inkblue.writer.data.BookWithStats
+import com.inkblue.writer.ui.components.BarPill
+import com.inkblue.writer.ui.components.BottomPillBar
 import com.inkblue.writer.ui.components.ConfirmDialog
 import com.inkblue.writer.ui.components.EmptyState
 import com.inkblue.writer.ui.components.InkCard
@@ -62,16 +64,11 @@ fun BookshelfScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { showCreate = true },
-                shape = RoundedCornerShape(28.dp),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("新建作品")
+            BottomPillBar {
+                BarPill("新建作品", Icons.Filled.Add, primary = true, onClick = { showCreate = true })
+                BarPill("文风库", Icons.Filled.Brush, onClick = onOpenStyles)
             }
         },
     ) { padding ->
@@ -96,13 +93,6 @@ fun BookshelfScreen(
                             if (books.isEmpty()) "落笔成章，始于此页" else "共 ${books.size} 部作品",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    IconButton(onClick = onOpenStyles) {
-                        Icon(
-                            Icons.Filled.Brush,
-                            contentDescription = "文风库",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     IconButton(onClick = onOpenSettings) {

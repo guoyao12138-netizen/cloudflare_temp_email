@@ -1,6 +1,7 @@
 package com.inkblue.writer.ui.editor
 
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,12 +28,15 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -62,6 +66,7 @@ import com.inkblue.writer.InkApp
 import com.inkblue.writer.data.AppSettings
 import com.inkblue.writer.data.Chapter
 import com.inkblue.writer.data.StyleProfile
+import com.inkblue.writer.data.WritingSkill
 import com.inkblue.writer.util.countWords
 import com.inkblue.writer.util.formatWordCount
 import kotlinx.coroutines.FlowPreview
@@ -130,6 +135,8 @@ private fun EditorContent(
     var aiLastAction by remember { mutableStateOf<AiAction?>(null) }
     var aiLastStyle by remember { mutableStateOf<StyleProfile?>(null) }
     var stylePickerOpen by remember { mutableStateOf(false) }
+    var aiSkill by remember { mutableStateOf<WritingSkill?>(null) }
+    var aiUseSearch by remember { mutableStateOf(false) }
     val styles by vm.styles.collectAsStateWithLifecycle()
 
     fun pushUndo(snapshot: TextFieldValue) {
@@ -194,12 +201,12 @@ private fun EditorContent(
         } else {
             contentValue.text.substring(contentValue.selection.min, contentValue.selection.max)
         }
-        vm.runAi(action, titleValue.text, contentValue.text, aiSelectionText, style)
+        vm.runAi(action, titleValue.text, contentValue.text, aiSelectionText, style, aiSkill, aiUseSearch)
     }
 
     fun retryAi() {
         aiLastAction?.let { action ->
-            vm.runAi(action, titleValue.text, contentValue.text, aiSelectionText, aiLastStyle)
+            vm.runAi(action, titleValue.text, contentValue.text, aiSelectionText, aiLastStyle, aiSkill, aiUseSearch)
         }
     }
 
@@ -397,13 +404,64 @@ private fun EditorContent(
             onDismissRequest = { aiSheetOpen = false },
             containerColor = colors.surface,
         ) {
-            Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 24.dp)) {
+            Column(
+                Modifier
+                    .padding(start = 20.dp, end = 20.dp, bottom = 24.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
                 Text(
                     "AI 写作",
                     style = MaterialTheme.typography.headlineSmall,
                     color = colors.onSurface,
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "写作技能",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = colors.onSurfaceVariant,
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = aiSkill == null,
+                        onClick = { aiSkill = null },
+                        label = { Text("无") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = colors.secondaryContainer,
+                            selectedLabelColor = colors.onSecondaryContainer,
+                        ),
+                    )
+                    settings.skills.forEach { skill ->
+                        FilterChip(
+                            selected = aiSkill?.id == skill.id,
+                            onClick = { aiSkill = skill },
+                            label = { Text(skill.name) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = colors.secondaryContainer,
+                                selectedLabelColor = colors.onSecondaryContainer,
+                            ),
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("联网搜索", style = MaterialTheme.typography.labelLarge, color = colors.onSurface)
+                        Text(
+                            "由模型服务端搜索资料后再写作（仅 Anthropic 协议生效）",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = colors.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = aiUseSearch, onCheckedChange = { aiUseSearch = it })
+                }
+                Spacer(Modifier.height(4.dp))
                 AiAction.entries.forEach { action ->
                     val enabled = action != AiAction.POLISH || hasSelection
                     AiActionRow(

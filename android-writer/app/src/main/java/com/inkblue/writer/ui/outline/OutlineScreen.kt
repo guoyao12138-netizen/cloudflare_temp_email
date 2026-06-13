@@ -67,6 +67,8 @@ import com.inkblue.writer.data.Book
 import com.inkblue.writer.data.NovelRepository
 import com.inkblue.writer.data.OutlineNode
 import com.inkblue.writer.data.SettingsRepository
+import com.inkblue.writer.ui.components.BarPill
+import com.inkblue.writer.ui.components.BottomPillBar
 import com.inkblue.writer.ui.components.ConfirmDialog
 import com.inkblue.writer.ui.components.EmptyState
 import com.inkblue.writer.ui.components.InkCard
@@ -254,28 +256,9 @@ fun OutlineScreen(
         },
         floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
-            Row {
-                ExtendedFloatingActionButton(
-                    onClick = { plannerOpen = true },
-                    shape = RoundedCornerShape(28.dp),
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ) {
-                    Icon(Icons.Filled.AutoAwesome, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("AI 规划")
-                }
-                Spacer(Modifier.width(12.dp))
-                ExtendedFloatingActionButton(
-                    onClick = { creating = true },
-                    shape = RoundedCornerShape(28.dp),
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("新建阶段")
-                }
+            BottomPillBar {
+                BarPill("AI 规划", Icons.Filled.AutoAwesome, primary = true, onClick = { plannerOpen = true })
+                BarPill("新建阶段", Icons.Filled.Add, onClick = { creating = true })
             }
         },
     ) { padding ->

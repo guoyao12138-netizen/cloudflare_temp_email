@@ -18,13 +18,12 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.inkblue.writer.data.Chapter
+import com.inkblue.writer.ui.components.BarPill
+import com.inkblue.writer.ui.components.BottomPillBar
 import com.inkblue.writer.ui.components.ConfirmDialog
 import com.inkblue.writer.ui.components.EmptyState
 import com.inkblue.writer.ui.components.InkCard
@@ -56,6 +57,7 @@ fun ChapterListScreen(
     onOpenChapter: (Long) -> Unit,
     onOpenLore: () -> Unit,
     onOpenOutline: () -> Unit,
+    onOpenAgent: () -> Unit,
     vm: ChapterListViewModel = viewModel(factory = ChapterListViewModel.factory(bookId)),
 ) {
     val book by vm.book.collectAsStateWithLifecycle()
@@ -100,20 +102,6 @@ fun ChapterListScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = onOpenOutline) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.List,
-                        contentDescription = "大纲",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(onClick = onOpenLore) {
-                    Icon(
-                        Icons.Outlined.Public,
-                        contentDescription = "世界观",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
                 Box {
                     IconButton(onClick = { bookMenuOpen = true }) {
                         Icon(
@@ -155,16 +143,13 @@ fun ChapterListScreen(
                 }
             }
         },
+        floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { showCreate = true },
-                shape = RoundedCornerShape(28.dp),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("新建章节")
+            BottomPillBar {
+                BarPill("助手", Icons.Filled.AutoAwesome, primary = true, onClick = onOpenAgent)
+                BarPill("大纲", onClick = onOpenOutline)
+                BarPill("世界观", onClick = onOpenLore)
+                BarPill("新建章节", Icons.Filled.Add, onClick = { showCreate = true })
             }
         },
     ) { padding ->

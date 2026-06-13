@@ -8,6 +8,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.inkblue.writer.ui.bookshelf.BookshelfScreen
 import com.inkblue.writer.ui.chapters.ChapterListScreen
+import com.inkblue.writer.ui.agent.AgentScreen
 import com.inkblue.writer.ui.editor.EditorScreen
 import com.inkblue.writer.ui.lore.LoreEditorScreen
 import com.inkblue.writer.ui.lore.LoreListScreen
@@ -40,6 +41,17 @@ fun InkNavHost() {
                 onOpenChapter = { nav.navigate("editor/$it") },
                 onOpenLore = { nav.navigate("lore/$bookId") },
                 onOpenOutline = { nav.navigate("outline/$bookId") },
+                onOpenAgent = { nav.navigate("agent/$bookId") },
+            )
+        }
+        composable(
+            "agent/{bookId}",
+            arguments = listOf(navArgument("bookId") { type = NavType.LongType }),
+        ) { entry ->
+            val bookId = entry.arguments?.getLong("bookId") ?: return@composable
+            AgentScreen(
+                bookId = bookId,
+                onBack = { nav.popBackStack() },
             )
         }
         composable(

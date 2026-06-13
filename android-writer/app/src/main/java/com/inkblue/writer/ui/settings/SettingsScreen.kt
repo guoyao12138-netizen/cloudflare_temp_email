@@ -48,6 +48,7 @@ import com.inkblue.writer.data.AiProfile
 import com.inkblue.writer.data.AiProvider
 import com.inkblue.writer.data.AppSettings
 import com.inkblue.writer.data.ThemeMode
+import com.inkblue.writer.data.WritingSkill
 import com.inkblue.writer.ui.components.InkCard
 import kotlinx.coroutines.launch
 
@@ -65,6 +66,8 @@ fun SettingsScreen(onBack: () -> Unit) {
 
     var editingProfile by remember { mutableStateOf<AiProfile?>(null) }
     var editingIsNew by remember { mutableStateOf(false) }
+    var editingSkill by remember { mutableStateOf<WritingSkill?>(null) }
+    var skillIsNew by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -300,6 +303,41 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
 
+            SectionLabel("写作技能")
+            InkCard {
+                Text(
+                    "技能是注入 AI 写作的技法指令，在编辑器 AI 面板中选用。点击可编辑。",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                settings.skills.forEach { skill ->
+                    Surface(
+                        onClick = {
+                            editingSkill = skill
+                            skillIsNew = false
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surface,
+                    ) {
+                        Column(Modifier.padding(vertical = 6.dp)) {
+                            Text(skill.name, style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                skill.instructions,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                            )
+                        }
+                    }
+                }
+                TextButton(
+                    onClick = {
+                        editingSkill = WritingSkill(System.currentTimeMillis(), "", "")
+                        skillIsNew = true
+                    },
+                ) { Text("＋ 添加技能") }
+            }
+
             SectionLabel("关于")
             InkCard {
                 Text("墨蓝写作", style = MaterialTheme.typography.titleLarge)
@@ -310,6 +348,26 @@ fun SettingsScreen(onBack: () -> Unit) {
                 )
             }
         }
+    }
+
+    editingSkill?.let { skill ->
+        SkillEditDialog(
+            initial = skill,
+            isNew = skillIsNew,
+            onDismiss = { editingSkill = null },
+            onSave = { updated ->
+                scope.launch { app.settings.saveSkill(updated) }
+                editingSkill = null
+            },
+            onDelete = if (skillIsNew) {
+                null
+            } else {
+                {
+                    scope.launch { app.settings.deleteSkill(skill.id) }
+                    editingSkill = null
+                }
+            },
+        )
     }
 
     editingProfile?.let { profile ->
@@ -397,6 +455,63 @@ private fun ThemeModeRow(
         )
         RadioButton(selected = current == mode, onClick = { onSelect(mode) })
     }
+}
+
+@Composable
+private fun SkillEditDialog(
+    initial: WritingSkill,
+    isNew: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (WritingSkill) -> Unit,
+    onDelete: (() -> Unit)?,
+) {
+    var name by remember { mutableStateOf(initial.name) }
+    var instructions by remember { mutableStateOf(initial.instructions) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Text(if (isNew) "添加技能" else "编辑技能", style = MaterialTheme.typography.titleLarge)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("技能名称") },
+                    placeholder = { Text("如：黄金三章 / 群像描写") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = instructions,
+                    onValueChange = { instructions = it },
+                    label = { Text("技法指令") },
+                    placeholder = { Text("写给 AI 的具体技法要求，会注入到写作提示词中") },
+                    minLines = 4,
+                    maxLines = 8,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(initial.copy(name = name.trim(), instructions = instructions.trim())) },
+                enabled = name.isNotBlank() && instructions.isNotBlank(),
+            ) { Text("保存") }
+        },
+        dismissButton = {
+            Row {
+                if (onDelete != null) {
+                    TextButton(onClick = onDelete) {
+                        Text("删除", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+                TextButton(onClick = onDismiss) { Text("取消") }
+            }
+        },
+    )
 }
 
 @Composable

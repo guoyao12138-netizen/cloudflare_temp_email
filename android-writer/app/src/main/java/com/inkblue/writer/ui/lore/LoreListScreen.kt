@@ -60,6 +60,8 @@ import com.inkblue.writer.ai.GeneratedLore
 import com.inkblue.writer.ai.LoreGenerator
 import com.inkblue.writer.data.LoreCategory
 import com.inkblue.writer.data.LoreEntry
+import com.inkblue.writer.ui.components.BarPill
+import com.inkblue.writer.ui.components.BottomPillBar
 import com.inkblue.writer.ui.components.ConfirmDialog
 import com.inkblue.writer.ui.components.EmptyState
 import com.inkblue.writer.ui.components.InkCard
@@ -137,28 +139,9 @@ fun LoreListScreen(
         },
         floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
-            Row {
-                ExtendedFloatingActionButton(
-                    onClick = { aiSheetOpen = true },
-                    shape = RoundedCornerShape(28.dp),
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ) {
-                    Icon(Icons.Filled.AutoAwesome, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("AI 构筑")
-                }
-                Spacer(Modifier.width(12.dp))
-                ExtendedFloatingActionButton(
-                    onClick = { showCreate = true },
-                    shape = RoundedCornerShape(28.dp),
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("新建设定")
-                }
+            BottomPillBar {
+                BarPill("AI 构筑", Icons.Filled.AutoAwesome, primary = true, onClick = { aiSheetOpen = true })
+                BarPill("新建设定", Icons.Filled.Add, onClick = { showCreate = true })
             }
         },
     ) { padding ->

@@ -12,6 +12,7 @@ import com.inkblue.writer.data.Chapter
 import com.inkblue.writer.data.NovelRepository
 import com.inkblue.writer.data.SettingsRepository
 import com.inkblue.writer.data.StyleProfile
+import com.inkblue.writer.data.WritingSkill
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -86,6 +87,8 @@ class EditorViewModel(
         content: String,
         selection: String,
         style: StyleProfile? = null,
+        skill: WritingSkill? = null,
+        useSearch: Boolean = false,
     ) {
         aiJob?.cancel()
         aiJob = viewModelScope.launch {
@@ -102,8 +105,9 @@ class EditorViewModel(
             val result = runCatching {
                 AiClient.generate(
                     config = profile.toAiConfig(),
-                    system = buildSystemPrompt(style),
+                    system = buildSystemPrompt(style, skill),
                     userPrompt = buildUserPrompt(action, chapterTitle, content, selection),
+                    enableSearch = useSearch,
                 )
             }
             result.fold(
@@ -121,8 +125,8 @@ class EditorViewModel(
         _aiState.value = AiUiState.Hidden
     }
 
-    /** Book info + worldbuilding + outline (+ optional style guide) for every AI call. */
-    private suspend fun buildSystemPrompt(style: StyleProfile?): String {
+    /** Book info + worldbuilding + outline (+ optional style guide / skill) for every AI call. */
+    private suspend fun buildSystemPrompt(style: StyleProfile?, skill: WritingSkill?): String {
         val chapter = repo.getChapter(chapterId)
         val book = chapter?.let { repo.getBook(it.bookId) }
         val lore = chapter?.let { repo.listLore(it.bookId) } ?: emptyList()
@@ -149,6 +153,10 @@ class EditorViewModel(
             if (style != null) {
                 appendLine("【文风指南】你必须严格模仿以下文风创作，它的优先级高于你的默认文风：")
                 appendLine(style.analysis.take(3000))
+            }
+            if (skill != null) {
+                appendLine("【写作技法要求 · ${skill.name}】创作时必须执行以下技法：")
+                appendLine(skill.instructions)
             }
         }.trim()
     }

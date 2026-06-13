@@ -39,6 +39,22 @@ data class AiProfile(
     fun effectiveModel(): String = model.ifBlank { provider.defaultModel }
 }
 
+/** A reusable writing technique preset injected into AI prompts. */
+data class WritingSkill(
+    val id: Long,
+    val name: String,
+    val instructions: String,
+)
+
+/** Built-in presets shown until the user customizes the list. */
+val DEFAULT_SKILLS = listOf(
+    WritingSkill(1L, "黄金三章", "前三章必须完成：主角登场即有鲜明记忆点；第一章结尾抛出强钩子；第三章前完成第一次爽点兑现。信息密度要高，避免大段背景说明，背景设定融入冲突中交代。"),
+    WritingSkill(2L, "爽点节奏", "每 800-1200 字安排一个小爽点（打脸、收获、升级、被认可），每章结尾留钩子。压抑与铺垫不超过两段就要给出释放。"),
+    WritingSkill(3L, "感官沉浸", "场景描写至少调动三种感官；战斗写清动作链与代价；情绪用身体反应外化，少用直接的心理陈述。"),
+    WritingSkill(4L, "对话推动", "优先用对话推进剧情与塑造人物，对白符合各角色身份口吻；每段对话都要改变局面或揭示信息，删掉寒暄废话。"),
+    WritingSkill(5L, "悬念钩子", "在一个答案揭晓之前抛出新的问题；章节结尾用悬念收束：危机逼近、反转征兆或一句没说完的话。"),
+)
+
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val editorFontSize: Int = 18,
@@ -48,6 +64,7 @@ data class AppSettings(
     val aiProfiles: List<AiProfile> = emptyList(),
     val primaryAiId: Long = 0L,
     val reviewerAiId: Long = 0L,
+    val skills: List<WritingSkill> = DEFAULT_SKILLS,
 ) {
     /** The model that writes: continue/polish/generation drafts. */
     fun primaryProfile(): AiProfile? =
@@ -68,6 +85,7 @@ class SettingsRepository(private val context: Context) {
         val AI_PROFILES = stringPreferencesKey("ai_profiles")
         val AI_PRIMARY_ID = longPreferencesKey("ai_primary_id")
         val AI_REVIEWER_ID = longPreferencesKey("ai_reviewer_id")
+        val WRITING_SKILLS = stringPreferencesKey("writing_skills")
 
         // Legacy single-service keys (pre-0.5.0), kept for migration.
         val LEGACY_AI_PROVIDER = stringPreferencesKey("ai_provider")
@@ -99,6 +117,7 @@ class SettingsRepository(private val context: Context) {
             aiProfiles = profiles,
             primaryAiId = p[Keys.AI_PRIMARY_ID] ?: profiles.firstOrNull()?.id ?: 0L,
             reviewerAiId = p[Keys.AI_REVIEWER_ID] ?: 0L,
+            skills = p[Keys.WRITING_SKILLS]?.let(::parseSkills) ?: DEFAULT_SKILLS,
         )
     }
 
@@ -158,6 +177,55 @@ class SettingsRepository(private val context: Context) {
     /** 0 disables the reviewer (single-model generation). */
     suspend fun setReviewerAi(id: Long) {
         context.dataStore.edit { it[Keys.AI_REVIEWER_ID] = id }
+    }
+
+    /** Insert or replace a skill; first mutation snapshots the built-in seeds. */
+    suspend fun saveSkill(skill: WritingSkill) {
+        context.dataStore.edit { p ->
+            val current = p[Keys.WRITING_SKILLS]?.let(::parseSkills) ?: DEFAULT_SKILLS
+            val updated = if (current.any { it.id == skill.id }) {
+                current.map { if (it.id == skill.id) skill else it }
+            } else {
+                current + skill
+            }
+            p[Keys.WRITING_SKILLS] = skillsToJson(updated)
+        }
+    }
+
+    suspend fun deleteSkill(id: Long) {
+        context.dataStore.edit { p ->
+            val current = p[Keys.WRITING_SKILLS]?.let(::parseSkills) ?: DEFAULT_SKILLS
+            p[Keys.WRITING_SKILLS] = skillsToJson(current.filterNot { it.id == id })
+        }
+    }
+
+    private fun parseSkills(json: String): List<WritingSkill> = try {
+        val array = JSONArray(json)
+        buildList {
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i) ?: continue
+                val name = obj.optString("name").trim()
+                val instructions = obj.optString("instructions").trim()
+                if (name.isEmpty() || instructions.isEmpty()) continue
+                add(WritingSkill(obj.optLong("id"), name, instructions))
+            }
+        }
+    } catch (e: Exception) {
+        DEFAULT_SKILLS
+    }
+
+    private fun skillsToJson(skills: List<WritingSkill>): String {
+        val array = JSONArray()
+        skills.forEach {
+            array.put(
+                JSONObject().apply {
+                    put("id", it.id)
+                    put("name", it.name)
+                    put("instructions", it.instructions)
+                }
+            )
+        }
+        return array.toString()
     }
 
     private fun currentProfiles(
