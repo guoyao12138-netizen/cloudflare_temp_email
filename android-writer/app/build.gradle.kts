@@ -13,8 +13,8 @@ android {
         applicationId = "com.inkblue.writer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.7.0"
+        versionCode = 10
+        versionName = "0.8.0"
     }
 
     // Fixed keystore (committed to the repo) so every build — local or CI —

@@ -454,7 +454,7 @@ private fun EditorContent(
                     Column(Modifier.weight(1f)) {
                         Text("联网搜索", style = MaterialTheme.typography.labelLarge, color = colors.onSurface)
                         Text(
-                            "由模型服务端搜索资料后再写作（仅 Anthropic 协议生效）",
+                            "搜索资料后再写作：配置 Tavily Key 则全协议可用，否则走 Anthropic/Gemini 原生搜索",
                             style = MaterialTheme.typography.labelMedium,
                             color = colors.onSurfaceVariant,
                         )

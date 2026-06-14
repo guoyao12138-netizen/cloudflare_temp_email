@@ -10,6 +10,7 @@
 
 ### Features
 
+- feat: |Android| 墨蓝写作 v0.8.0（仅安卓）：新增 Gemini 协议支持（Google 官方/中转）；新增 Tavily 搜索 API Key 接入，配置后 AI 写作与创作助手的联网搜索适用于所有协议（Gemini/OpenAI 兼容也可联网），未配置则回退到 Anthropic/Gemini 原生搜索；每个 AI 服务可单独设置思考强度（关闭/低/中/高，分别映射 Claude effort、OpenAI reasoning_effort、Gemini thinkingBudget）
 - feat: |Android| 墨蓝写作 v0.7.0：新增按作品的创作助手 Agent（多轮对话，自动携带世界观/大纲/章节上下文，可产出正文与改稿）；新增写作技能 Skill 系统（内置 5 个技法预设、可自定义，注入 AI 写作提示词）；AI 写作与助手支持联网搜索（Anthropic 服务端 web_search）；书架/章节页操作按钮统一下移至底部居中胶囊栏
 - feat: |Android| 墨蓝写作 v0.6.1：UI 优化——AI 入口统一移至屏幕中下位置（编辑器符号栏前置 AI 按钮、世界观/大纲页底部居中双按钮、设定修订底部居中）；新增 macOS Intel 桌面版（Compose Desktop，DMG 随 Release 发布）：与安卓同源的书架/章节/大纲/世界观/文风库/多 AI 协作，数据存于 ~/.inkblue-writer
 - feat: |Android| 墨蓝写作 v0.6.0：新增大纲规划（剧情阶段卡片、调序、AI 一键规划/续排，续写自动携带大纲）；新增文风 Agent 与小说仿写——导入/粘贴小说文本（UTF-8/GBK 自动识别）提炼七维文风指南入库，编辑器可按选定文风续写或改写选中文字；数据库 v2→v3 迁移

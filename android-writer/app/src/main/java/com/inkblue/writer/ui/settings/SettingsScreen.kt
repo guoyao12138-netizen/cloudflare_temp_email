@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,12 +42,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.inkblue.writer.InkApp
 import com.inkblue.writer.data.AiProfile
 import com.inkblue.writer.data.AiProvider
+import com.inkblue.writer.data.ReasoningEffort
 import com.inkblue.writer.data.AppSettings
 import com.inkblue.writer.data.ThemeMode
 import com.inkblue.writer.data.WritingSkill
@@ -202,7 +206,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             SectionLabel("AI 服务")
             InkCard {
                 Text(
-                    "支持 Anthropic 协议与 OpenAI 兼容协议，Base URL 可填官方地址，也可填中转站 / API 代理。可添加多个服务用于多 AI 协作。密钥仅保存在本机。",
+                    "支持 Anthropic / OpenAI 兼容 / Gemini 三种协议，Base URL 可填官方地址，也可填中转站 / API 代理。可添加多个服务用于多 AI 协作，并为每个服务单独设置思考强度。密钥仅保存在本机。",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -254,6 +258,23 @@ fun SettingsScreen(onBack: () -> Unit) {
                         editingIsNew = true
                     },
                 ) { Text("＋ 添加 AI 服务") }
+            }
+
+            SectionLabel("联网搜索")
+            InkCard {
+                Text(
+                    "填入 Tavily API Key 后，AI 写作与创作助手的「联网搜索」适用于所有协议（含 Gemini / OpenAI 兼容）。留空则仅 Anthropic / Gemini 使用各自的原生搜索。密钥仅保存在本机。",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                AiConfigField(
+                    label = "Tavily API Key",
+                    storedValue = settings.tavilyApiKey,
+                    placeholder = "tvly-...（可选）",
+                    secret = true,
+                    onCommit = { scope.launch { app.settings.setTavilyApiKey(it) } },
+                )
             }
 
             SectionLabel("AI 分工")
@@ -457,6 +478,33 @@ private fun ThemeModeRow(
     }
 }
 
+/**
+ * Text field whose stored value shows until the user edits; the local draft
+ * then wins so slow DataStore round-trips can't clobber fast typing.
+ */
+@Composable
+private fun AiConfigField(
+    label: String,
+    storedValue: String,
+    placeholder: String,
+    onCommit: (String) -> Unit,
+    secret: Boolean = false,
+) {
+    var draft by remember { mutableStateOf<String?>(null) }
+    OutlinedTextField(
+        value = draft ?: storedValue,
+        onValueChange = {
+            draft = it
+            onCommit(it)
+        },
+        label = { Text(label) },
+        placeholder = { Text(placeholder) },
+        singleLine = true,
+        visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
 @Composable
 private fun SkillEditDialog(
     initial: WritingSkill,
@@ -514,6 +562,7 @@ private fun SkillEditDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProfileEditDialog(
     initial: AiProfile,
@@ -527,6 +576,7 @@ private fun ProfileEditDialog(
     var baseUrl by remember { mutableStateOf(initial.baseUrl) }
     var apiKey by remember { mutableStateOf(initial.apiKey) }
     var model by remember { mutableStateOf(initial.model) }
+    var effort by remember { mutableStateOf(initial.effort) }
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(20.dp),
@@ -589,6 +639,30 @@ private fun ProfileEditDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Text(
+                    "思考强度",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    "让模型在回答前更深入推理。需模型支持（Claude effort / OpenAI reasoning_effort / Gemini thinkingBudget），中转或旧模型可能不支持，遇到报错请关闭。",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ReasoningEffort.entries.forEach { e ->
+                        FilterChip(
+                            selected = effort == e,
+                            onClick = { effort = e },
+                            label = { Text(e.label) },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            ),
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
@@ -601,6 +675,7 @@ private fun ProfileEditDialog(
                             baseUrl = baseUrl.trim(),
                             apiKey = apiKey.trim(),
                             model = model.trim(),
+                            effort = effort,
                         )
                     )
                 },

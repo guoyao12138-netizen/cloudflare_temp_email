@@ -18,12 +18,22 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 /**
  * Wire protocol of an AI service. ANTHROPIC speaks the native Claude Messages
- * API; OPENAI speaks any OpenAI-compatible /chat/completions endpoint.
- * Both accept custom base URLs, so relays / API proxies work on either.
+ * API; OPENAI speaks any OpenAI-compatible /chat/completions endpoint; GEMINI
+ * speaks the Google Generative Language API. All accept custom base URLs, so
+ * relays / API proxies work on any of them.
  */
 enum class AiProvider(val label: String, val defaultBaseUrl: String, val defaultModel: String) {
     ANTHROPIC("Anthropic 协议（Claude 官方 / 中转）", "https://api.anthropic.com", "claude-opus-4-8"),
     OPENAI("OpenAI 兼容协议（DeepSeek / Kimi / 中转 / 代理）", "https://api.deepseek.com", "deepseek-chat"),
+    GEMINI("Gemini 协议（Google 官方 / 中转）", "https://generativelanguage.googleapis.com", "gemini-2.5-flash"),
+}
+
+/** How hard the model should think before answering. Mapped per-protocol. */
+enum class ReasoningEffort(val label: String) {
+    OFF("关闭"),
+    LOW("低"),
+    MEDIUM("中"),
+    HIGH("高"),
 }
 
 /** One configured AI service endpoint. Several can coexist and collaborate. */
@@ -34,6 +44,7 @@ data class AiProfile(
     val baseUrl: String = "",
     val apiKey: String = "",
     val model: String = "",
+    val effort: ReasoningEffort = ReasoningEffort.OFF,
 ) {
     fun effectiveBaseUrl(): String = baseUrl.ifBlank { provider.defaultBaseUrl }
     fun effectiveModel(): String = model.ifBlank { provider.defaultModel }
@@ -65,6 +76,7 @@ data class AppSettings(
     val primaryAiId: Long = 0L,
     val reviewerAiId: Long = 0L,
     val skills: List<WritingSkill> = DEFAULT_SKILLS,
+    val tavilyApiKey: String = "",
 ) {
     /** The model that writes: continue/polish/generation drafts. */
     fun primaryProfile(): AiProfile? =
@@ -86,6 +98,7 @@ class SettingsRepository(private val context: Context) {
         val AI_PRIMARY_ID = longPreferencesKey("ai_primary_id")
         val AI_REVIEWER_ID = longPreferencesKey("ai_reviewer_id")
         val WRITING_SKILLS = stringPreferencesKey("writing_skills")
+        val TAVILY_API_KEY = stringPreferencesKey("tavily_api_key")
 
         // Legacy single-service keys (pre-0.5.0), kept for migration.
         val LEGACY_AI_PROVIDER = stringPreferencesKey("ai_provider")
@@ -118,7 +131,12 @@ class SettingsRepository(private val context: Context) {
             primaryAiId = p[Keys.AI_PRIMARY_ID] ?: profiles.firstOrNull()?.id ?: 0L,
             reviewerAiId = p[Keys.AI_REVIEWER_ID] ?: 0L,
             skills = p[Keys.WRITING_SKILLS]?.let(::parseSkills) ?: DEFAULT_SKILLS,
+            tavilyApiKey = p[Keys.TAVILY_API_KEY] ?: "",
         )
+    }
+
+    suspend fun setTavilyApiKey(key: String) {
+        context.dataStore.edit { it[Keys.TAVILY_API_KEY] = key.trim() }
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
@@ -271,6 +289,9 @@ class SettingsRepository(private val context: Context) {
                 val provider = AiProvider.entries
                     .firstOrNull { it.name == obj.optString("provider") }
                     ?: AiProvider.ANTHROPIC
+                val effort = ReasoningEffort.entries
+                    .firstOrNull { it.name == obj.optString("effort") }
+                    ?: ReasoningEffort.OFF
                 add(
                     AiProfile(
                         id = obj.optLong("id"),
@@ -279,6 +300,7 @@ class SettingsRepository(private val context: Context) {
                         baseUrl = obj.optString("baseUrl"),
                         apiKey = obj.optString("apiKey"),
                         model = obj.optString("model"),
+                        effort = effort,
                     )
                 )
             }
@@ -298,6 +320,7 @@ class SettingsRepository(private val context: Context) {
                     put("baseUrl", profile.baseUrl)
                     put("apiKey", profile.apiKey)
                     put("model", profile.model)
+                    put("effort", profile.effort.name)
                 }
             )
         }

@@ -55,6 +55,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.inkblue.writer.InkApp
 import com.inkblue.writer.ai.AiClient
 import com.inkblue.writer.ai.ChatTurn
+import com.inkblue.writer.ai.TavilyClient
 import com.inkblue.writer.ai.toAiConfig
 import com.inkblue.writer.data.Book
 import com.inkblue.writer.data.NovelRepository
@@ -102,13 +103,26 @@ class AgentViewModel(
                     return@launch
                 }
                 val history = _messages.value.takeLast(20).map { ChatTurn(it.role, it.text) }
+                var system = buildSystemPrompt()
+                var nativeSearch = false
+                if (useSearch) {
+                    val tavily = settings.tavilyApiKey
+                    if (tavily.isNotBlank()) {
+                        val ctx = runCatching { TavilyClient.search(tavily, text.trim()) }.getOrNull()
+                        if (!ctx.isNullOrBlank()) {
+                            system += "\n\n【联网搜索资料（Tavily）】可参考以下资料回答：\n$ctx"
+                        }
+                    } else {
+                        nativeSearch = true
+                    }
+                }
                 val reply = runCatching {
                     AiClient.chat(
                         config = profile.toAiConfig(),
-                        system = buildSystemPrompt(),
+                        system = system,
                         history = history,
                         maxTokens = 4096,
-                        enableSearch = useSearch,
+                        enableSearch = nativeSearch,
                     )
                 }.getOrElse { e ->
                     if (e is CancellationException) throw e
@@ -315,7 +329,7 @@ fun AgentScreen(
                         value = input,
                         onValueChange = { input = it },
                         placeholder = {
-                            Text(if (useSearch) "已开启联网搜索（仅 Anthropic 协议）…" else "和助手聊聊剧情、要一段正文…")
+                            Text(if (useSearch) "已开启联网搜索（Tavily / 原生）…" else "和助手聊聊剧情、要一段正文…")
                         },
                         minLines = 1,
                         maxLines = 4,

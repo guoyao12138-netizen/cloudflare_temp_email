@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.inkblue.writer.InkApp
 import com.inkblue.writer.ai.AiClient
+import com.inkblue.writer.ai.TavilyClient
 import com.inkblue.writer.ai.toAiConfig
 import com.inkblue.writer.data.Chapter
 import com.inkblue.writer.data.NovelRepository
@@ -102,12 +103,30 @@ class EditorViewModel(
                 )
                 return@launch
             }
+            // Tavily (if configured) is provider-agnostic and takes priority;
+            // otherwise fall back to the provider's native search.
+            var system = buildSystemPrompt(style, skill)
+            var nativeSearch = false
+            if (useSearch) {
+                val tavily = settings.tavilyApiKey
+                if (tavily.isNotBlank()) {
+                    val query = (selection.ifBlank { content.takeLast(200) }).let {
+                        "$chapterTitle $it".trim()
+                    }
+                    val ctx = runCatching { TavilyClient.search(tavily, query) }.getOrNull()
+                    if (!ctx.isNullOrBlank()) {
+                        system += "\n\n【联网搜索资料（Tavily）】可参考以下资料以保证细节真实：\n$ctx"
+                    }
+                } else {
+                    nativeSearch = true
+                }
+            }
             val result = runCatching {
                 AiClient.generate(
                     config = profile.toAiConfig(),
-                    system = buildSystemPrompt(style, skill),
+                    system = system,
                     userPrompt = buildUserPrompt(action, chapterTitle, content, selection),
-                    enableSearch = useSearch,
+                    enableSearch = nativeSearch,
                 )
             }
             result.fold(
