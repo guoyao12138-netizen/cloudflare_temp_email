@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.map
 
 /** Vertex AI target + generation settings the user can edit on the Settings screen. */
 data class AppSettings(
-    val projectId: String = "",
+    val projectId: String = "project-52b70721-e4b4-481e-a04",
     val location: String = "us-central1",
     val model: String = "gemini-2.0-flash-001",
     val systemInstruction: String = "",
@@ -24,9 +24,11 @@ private val Context.dataStore by preferencesDataStore(name = "vertexchat_setting
 class SettingsStore(context: Context) {
     private val ds = context.applicationContext.dataStore
 
+    private val defaults = AppSettings()
+
     val settings: Flow<AppSettings> = ds.data.map { prefs ->
         AppSettings(
-            projectId = prefs[KEY_PROJECT] ?: "",
+            projectId = prefs[KEY_PROJECT] ?: defaults.projectId,
             location = prefs[KEY_LOCATION] ?: "us-central1",
             model = prefs[KEY_MODEL] ?: "gemini-2.0-flash-001",
             systemInstruction = prefs[KEY_SYSTEM] ?: "",
