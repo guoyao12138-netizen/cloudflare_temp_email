@@ -16,7 +16,7 @@ object Config {
      * Google Cloud Console for your project. Looks like:
      *   123456789-abcdefg.apps.googleusercontent.com
      */
-    const val OAUTH_CLIENT_ID = "REPLACE_WITH_CLIENT_ID.apps.googleusercontent.com"
+    const val OAUTH_CLIENT_ID = "816002980526-q6ncbbilgd0senbabdeur6dkphv4s3h4.apps.googleusercontent.com"
 
     /**
      * Redirect URI handed back to the app after the consent screen. For Google
