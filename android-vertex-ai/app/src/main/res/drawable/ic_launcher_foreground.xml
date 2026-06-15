@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Simple stylized spark/star glyph centered in the adaptive safe zone. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,30 C56,42 66,52 78,54 C66,56 56,66 54,78 C52,66 42,56 30,54 C42,52 52,42 54,30 Z" />
+</vector>

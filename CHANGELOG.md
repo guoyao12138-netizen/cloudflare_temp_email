@@ -10,6 +10,7 @@
 
 ### Features
 
+- feat: |Android| 新增 Android 客户端 App（`android-vertex-ai/`），支持通过 Google OAuth 2.0 登录后使用用户自身的 GCP 账号访问 Vertex AI Gemini 模型，实现移动端 ADC 等效的鉴权与对话界面
 - feat: |Frontend| 将邮箱地址凭证弹窗升级为“地址凭证与连接方式”，复用普通用户与 admin 创建邮箱结果弹窗；支持通过 `ENABLE_AGENT_EMAIL_INFO` 展示 AI Agent 接入信息，并通过 `SMTP_IMAP_PROXY_CONFIG` 展示 SMTP/IMAP 客户端连接信息
 - docs: |随机子域名| 在前端“启用随机子域名”提示与 `subdomain` / `worker-vars` 文档（中英）中明确说明：要让 `name@<随机>.abc.com` 真正收到邮件，必须在基础域名 DNS 中为 `*` 子域添加通配 MX 记录，Email Routing 子域不继承父域配置（issue #1035）
 
