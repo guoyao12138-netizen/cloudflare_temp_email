@@ -22,7 +22,23 @@ android {
                 ?: "com.googleusercontent.apps.REPLACE_WITH_REVERSED_CLIENT_ID"
     }
 
+    signingConfigs {
+        // Fixed debug keystore committed to the repo so every build (local or CI)
+        // is signed with the SAME key — its SHA-1 stays constant, which is what
+        // the Google OAuth Android client must be registered against.
+        // SHA-1: 6B:CF:B4:01:56:84:2F:F5:B4:98:31:D6:0F:FA:D5:44:2D:51:F5:1E
+        getByName("debug") {
+            storeFile = rootProject.file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
