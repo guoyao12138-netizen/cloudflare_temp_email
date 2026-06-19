@@ -58,13 +58,14 @@ class AuthManager(context: Context) {
             Config.REDIRECT_URI,
         )
             .setScopes(Config.SCOPES)
-            // access_type=offline + prompt=consent => we receive a refresh token,
-            // so the app can keep refreshing access tokens without re-prompting.
+            // prompt=consent forces Google to return a refresh token. It is a
+            // reserved OAuth param, so AppAuth requires the dedicated builder
+            // method rather than setAdditionalParameters().
+            .setPromptValues(AuthorizationRequest.Prompt.CONSENT)
+            // access_type=offline is a Google-specific extension (not reserved),
+            // so it goes through additional parameters.
             .setAdditionalParameters(
-                mapOf(
-                    "access_type" to "offline",
-                    "prompt" to "consent",
-                )
+                mapOf("access_type" to "offline")
             )
             .build()
         return authService.getAuthorizationRequestIntent(request)
