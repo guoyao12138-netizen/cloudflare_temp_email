@@ -105,6 +105,7 @@ private fun AppRoot(
             loading = signIn.loading,
             error = signIn.error,
             configWarning = warning,
+            buildLabel = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
             onSignIn = onStartSignIn,
         )
         return

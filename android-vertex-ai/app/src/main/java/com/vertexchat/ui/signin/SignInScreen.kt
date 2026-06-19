@@ -22,6 +22,7 @@ fun SignInScreen(
     loading: Boolean,
     error: String?,
     configWarning: String?,
+    buildLabel: String,
     onSignIn: () -> Unit,
 ) {
     Surface(modifier = Modifier.fillMaxSize()) {
@@ -66,6 +67,15 @@ fun SignInScreen(
                     modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 )
             }
+
+            // Build marker so it's obvious which APK is installed.
+            Text(
+                text = buildLabel,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
+            )
         }
     }
 }
