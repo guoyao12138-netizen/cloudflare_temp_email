@@ -12,8 +12,8 @@ android {
         applicationId = "com.vertexchat"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1-promptfix"
+        versionCode = 3
+        versionName = "1.0.2-androidclient"
 
         // AppAuth's RedirectUriReceiverActivity reads this placeholder to register
         // the custom-scheme intent filter that catches the OAuth redirect.
