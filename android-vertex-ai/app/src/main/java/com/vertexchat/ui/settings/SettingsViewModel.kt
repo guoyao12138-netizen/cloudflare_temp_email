@@ -3,28 +3,24 @@ package com.vertexchat.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.vertexchat.data.AppSettings
-import com.vertexchat.data.SettingsStore
+import com.vertexchat.data.GlobalSettingsStore
+import com.vertexchat.data.model.GlobalSettings
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class SettingsViewModel(
-    private val settingsStore: SettingsStore,
-) : ViewModel() {
+class SettingsViewModel(private val store: GlobalSettingsStore) : ViewModel() {
 
-    val settings: StateFlow<AppSettings> = settingsStore.settings
-        .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettings())
+    val settings: StateFlow<GlobalSettings> = store.settings
+        .stateIn(viewModelScope, SharingStarted.Eagerly, GlobalSettings())
 
-    fun save(settings: AppSettings) {
-        viewModelScope.launch { settingsStore.update(settings) }
+    fun save(settings: GlobalSettings) {
+        viewModelScope.launch { store.update(settings) }
     }
 
-    class Factory(private val settingsStore: SettingsStore) : ViewModelProvider.Factory {
+    class Factory(private val store: GlobalSettingsStore) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return SettingsViewModel(settingsStore) as T
-        }
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = SettingsViewModel(store) as T
     }
 }

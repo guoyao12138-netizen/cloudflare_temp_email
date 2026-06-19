@@ -1,5 +1,7 @@
 package com.vertexchat.ui.chat
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,10 +19,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,63 +45,58 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.vertexchat.data.UiChatMessage
+import com.vertexchat.data.model.ProviderConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     viewModel: ChatViewModel,
-    email: String?,
     onOpenSettings: () -> Unit,
-    onSignOut: () -> Unit,
+    onOpenMcp: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val settings by viewModel.settings.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val providers by viewModel.providers.collectAsStateWithLifecycle()
+    val activeProvider by viewModel.activeProvider.collectAsStateWithLifecycle()
+    val globalSettings by viewModel.globalSettings.collectAsStateWithLifecycle()
+
+    val snackbarHost = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
 
     LaunchedEffect(state.error) {
-        state.error?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearError()
-        }
+        state.error?.let { snackbarHost.showSnackbar(it); viewModel.clearError() }
     }
-
     LaunchedEffect(state.messages.size) {
-        if (state.messages.isNotEmpty()) {
-            listState.animateScrollToItem(state.messages.size - 1)
-        }
+        if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.size - 1)
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHost) },
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("Vertex Chat", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            text = if (settings.isComplete) {
-                                "${settings.model} · ${settings.location}"
-                            } else {
-                                "Not configured — open Settings"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    ProviderModelPicker(
+                        providers = providers,
+                        activeProvider = activeProvider,
+                        activeModel = globalSettings.activeModel,
+                        onSelect = { pid, model -> viewModel.switchProvider(pid, model) },
+                    )
                 },
                 actions = {
                     IconButton(onClick = viewModel::clearConversation) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Clear conversation")
+                        Icon(Icons.Filled.Delete, contentDescription = "Clear")
+                    }
+                    IconButton(onClick = onOpenMcp) {
+                        Icon(Icons.Filled.AccountTree, contentDescription = "MCP Servers")
                     }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = "Settings")
-                    }
-                    IconButton(onClick = onSignOut) {
-                        Icon(Icons.Filled.Logout, contentDescription = "Sign out")
                     }
                 },
             )
@@ -104,8 +105,7 @@ fun ChatScreen(
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             if (state.messages.isEmpty()) {
                 EmptyState(
-                    email = email,
-                    configured = settings.isComplete,
+                    provider = activeProvider,
                     modifier = Modifier.weight(1f),
                 )
             } else {
@@ -115,15 +115,12 @@ fun ChatScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(state.messages) { message -> MessageBubble(message) }
-                    if (state.isSending) {
-                        item { TypingIndicator() }
-                    }
+                    items(state.messages, key = { it.id }) { msg -> MessageBubble(msg) }
                 }
             }
 
             MessageInput(
-                enabled = !state.isSending && settings.isComplete,
+                enabled = !state.isSending,
                 sending = state.isSending,
                 onSend = viewModel::send,
             )
@@ -132,76 +129,132 @@ fun ChatScreen(
 }
 
 @Composable
-private fun EmptyState(email: String?, configured: Boolean, modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = if (configured) "Ask anything" else "Almost there",
-                style = MaterialTheme.typography.headlineSmall,
-            )
-            Text(
-                text = if (configured) {
-                    "Messages are sent to your Vertex AI project using your Google login."
-                } else {
-                    "Open Settings and enter your GCP project ID to start chatting."
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-            email?.let {
+private fun ProviderModelPicker(
+    providers: List<ProviderConfig>,
+    activeProvider: ProviderConfig?,
+    activeModel: String,
+    onSelect: (providerId: String, model: String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val displayModel = activeModel.ifBlank { activeProvider?.activeModel ?: "—" }
+    val displayProvider = activeProvider?.name ?: "No provider"
+
+    Box {
+        Row(
+            modifier = Modifier.clickable { expanded = true },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f, fill = false)) {
                 Text(
-                    text = "Signed in as $it",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 16.dp),
+                    displayProvider,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
+                Text(
+                    displayModel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
+        }
+
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            providers.filter { it.enabled }.forEach { prov ->
+                val models = prov.models.ifEmpty { listOf(prov.activeModel).filter { it.isNotBlank() } }
+                if (models.isEmpty()) {
+                    DropdownMenuItem(
+                        text = { Text(prov.name, style = MaterialTheme.typography.labelLarge) },
+                        onClick = { onSelect(prov.id, ""); expanded = false },
+                    )
+                } else {
+                    models.forEach { model ->
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(model, style = MaterialTheme.typography.bodyMedium)
+                                    Text(
+                                        prov.name,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            },
+                            onClick = { onSelect(prov.id, model); expanded = false },
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun MessageBubble(message: ChatMessage) {
-    val isUser = message.author == Author.USER
-    val bubbleColor = if (isUser) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
-    ) {
-        Surface(
-            color = bubbleColor,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.widthIn(max = 320.dp),
-        ) {
+private fun EmptyState(provider: ProviderConfig?, modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = message.text,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                style = MaterialTheme.typography.bodyLarge,
+                text = if (provider != null) "Ask anything" else "No provider configured",
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Text(
+                text = if (provider != null) {
+                    "Using ${provider.name}. Messages stay on device."
+                } else {
+                    "Go to Settings → Providers to add an API provider."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
             )
         }
     }
 }
 
 @Composable
-private fun TypingIndicator() {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        CircularProgressIndicator(modifier = Modifier.padding(8.dp), strokeWidth = 2.dp)
-        Text("Thinking…", style = MaterialTheme.typography.bodyMedium)
+private fun MessageBubble(message: UiChatMessage) {
+    val isUser = message.role == "user"
+    val bubbleColor = if (isUser) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+    ) {
+        Column(
+            modifier = Modifier.widthIn(max = 320.dp),
+            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
+        ) {
+            Surface(
+                color = bubbleColor,
+                shape = RoundedCornerShape(16.dp),
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                    Text(
+                        text = message.content,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    if (message.isStreaming) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.padding(top = 4.dp).size(14.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun MessageInput(
-    enabled: Boolean,
-    sending: Boolean,
-    onSend: (String) -> Unit,
-) {
+private fun MessageInput(enabled: Boolean, sending: Boolean, onSend: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
     Surface(tonalElevation = 3.dp) {
         Row(
@@ -213,13 +266,10 @@ private fun MessageInput(
                 onValueChange = { text = it },
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("Message") },
-                maxLines = 5,
+                maxLines = 6,
             )
             IconButton(
-                onClick = {
-                    onSend(text)
-                    text = ""
-                },
+                onClick = { onSend(text); text = "" },
                 enabled = enabled && text.isNotBlank(),
                 modifier = Modifier.padding(start = 4.dp),
             ) {

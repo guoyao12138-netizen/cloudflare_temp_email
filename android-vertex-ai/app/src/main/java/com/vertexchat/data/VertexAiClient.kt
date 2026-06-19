@@ -21,11 +21,12 @@ import java.util.concurrent.TimeUnit
  */
 class VertexAiClient(
     private val gson: Gson = Gson(),
-) {
-    private val http = OkHttpClient.Builder()
+    @Volatile var http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
-        .build()
+        .build(),
+) {
+    fun updateHttp(http: OkHttpClient) { this.http = http }
 
     suspend fun generateContent(
         accessToken: String,
