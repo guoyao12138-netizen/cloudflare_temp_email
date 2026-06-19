@@ -3,7 +3,9 @@ name: Build Android APK
 on:
   push:
     branches: ["claude/android-vertex-ai-gcloud-auth-fytgh9", "main"]
-    paths: ["android-vertex-ai/**"]
+    paths:
+      - "android-vertex-ai/**"
+      - ".github/workflows/build-android-apk.yml"
   workflow_dispatch:
 
 jobs:
