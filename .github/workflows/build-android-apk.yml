@@ -8,6 +8,9 @@ on:
       - ".github/workflows/build-android-apk.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -38,9 +41,31 @@ jobs:
         working-directory: android-vertex-ai
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Rename APK with build number
+        run: |
+          mkdir -p dist
+          cp android-vertex-ai/app/build/outputs/apk/debug/app-debug.apk \
+             "dist/vertex-chat-build${{ github.run_number }}.apk"
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vertex-chat-debug
-          path: android-vertex-ai/app/build/outputs/apk/debug/app-debug.apk
+          name: vertex-chat-build${{ github.run_number }}
+          path: dist/vertex-chat-build${{ github.run_number }}.apk
           retention-days: 30
+
+      - name: Publish Release
+        if: github.ref == 'refs/heads/claude/android-vertex-ai-gcloud-auth-fytgh9'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-build-${{ github.run_number }}
+          name: Vertex Chat — build ${{ github.run_number }}
+          body: |
+            Vertex Chat Android APK (debug-signed, build ${{ github.run_number }}).
+
+            Signing SHA-1: `6B:CF:B4:01:56:84:2F:F5:B4:98:31:D6:0F:FA:D5:44:2D:51:F5:1E`
+
+            Download `vertex-chat-build${{ github.run_number }}.apk` below and install.
+            The sign-in screen shows the version at the bottom so you can confirm
+            you installed the right build.
+          files: dist/vertex-chat-build${{ github.run_number }}.apk
